@@ -78,7 +78,7 @@
 
 <div class="card mt-3">
     <div class="card-header">
-        <h6 class="mb-0">Daily Sales Details ({{ $reportDate }})</h6>
+        <h6 class="mb-0">Daily Sales — Item Breakdown ({{ $reportDate }})</h6>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -88,29 +88,50 @@
                         <th>Order #</th>
                         <th>Customer</th>
                         <th>Payment</th>
-                        <th>Items</th>
-                        <th>Discount</th>
-                        <th>Total</th>
+                        <th>Item Name</th>
+                        <th class="text-end">Unit Price</th>
+                        <th class="text-end">Qty</th>
+                        <th class="text-end">Discount</th>
+                        <th class="text-end">Earning</th>
                         <th>Date</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($dailyOrders as $order)
+                        @foreach($order->items as $item)
                         <tr>
-                            <td>{{ $order->order_number }}</td>
-                            <td>{{ $order->customer?->full_name ?: $order->customer_name }}</td>
-                            <td>{{ strtoupper($order->payment_method) }}</td>
-                            <td>{{ $order->items->sum('quantity') }}</td>
-                            <td>PKR {{ number_format($order->items->sum('discount_amount'), 2) }}</td>
-                            <td>PKR {{ number_format($order->total, 2) }}</td>
-                            <td>{{ $order->created_at->format('Y-m-d H:i') }}</td>
+                            @if($loop->first)
+                                <td rowspan="{{ $order->items->count() }}">{{ $order->order_number }}</td>
+                                <td rowspan="{{ $order->items->count() }}">{{ $order->customer?->full_name ?: $order->customer_name }}</td>
+                                <td rowspan="{{ $order->items->count() }}">{{ strtoupper($order->payment_method) }}</td>
+                            @endif
+                            <td>{{ $item->product_name }}</td>
+                            <td class="text-end">PKR {{ number_format($item->unit_price, 2) }}</td>
+                            <td class="text-end">{{ $item->quantity }}</td>
+                            <td class="text-end">PKR {{ number_format($item->discount_amount, 2) }}</td>
+                            <td class="text-end">PKR {{ number_format($item->line_total, 2) }}</td>
+                            @if($loop->first)
+                                <td rowspan="{{ $order->items->count() }}">{{ $order->created_at->format('Y-m-d H:i') }}</td>
+                            @endif
                         </tr>
+                        @endforeach
                     @empty
                         <tr>
-                            <td colspan="7" class="text-center">No sales found for selected date.</td>
+                            <td colspan="9" class="text-center">No sales found for selected date.</td>
                         </tr>
                     @endforelse
                 </tbody>
+                            @if($dailyOrders->isNotEmpty())
+                            <tfoot class="table-dark fw-bold">
+                                <tr>
+                                    <td colspan="5" class="text-end">TOTALS</td>
+                                    <td class="text-end">{{ $summary['total_items_sold'] }}</td>
+                                    <td class="text-end">PKR {{ number_format($summary['total_discount'], 2) }}</td>
+                                    <td class="text-end">PKR {{ number_format($summary['total_earning'], 2) }}</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                            @endif
             </table>
         </div>
     </div>
