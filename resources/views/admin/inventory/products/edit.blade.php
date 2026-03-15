@@ -52,8 +52,6 @@
                                     <select name="unit" class="form-control @error('unit') is-invalid @enderror" required>
                                         <option value="pcs" {{ old('unit', $product->unit ?? 'pcs') === 'pcs' ? 'selected' : '' }}>pcs</option>
                                         <option value="kg" {{ old('unit', $product->unit) === 'kg' ? 'selected' : '' }}>kg</option>
-                                        <option value="ltr" {{ old('unit', $product->unit) === 'ltr' ? 'selected' : '' }}>ltr</option>
-                                        <option value="pack" {{ old('unit', $product->unit) === 'pack' ? 'selected' : '' }}>pack</option>
                                     </select>
                                     @error('unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>

@@ -41,7 +41,7 @@
                             <td>{{ $order->customer?->full_name ?: $order->customer_name }}</td>
                             <td>{{ strtoupper($order->payment_method) }}</td>
                             <td>{{ $order->items_count }}</td>
-                            <td>${{ number_format($order->total, 2) }}</td>
+                            <td>PKR {{ number_format($order->total, 2) }}</td>
                             <td>{{ $order->created_at->format('Y-m-d H:i') }}</td>
                             <td>
                                 <a href="{{ route('pos.orders.show', $order) }}" class="btn btn-sm btn-info">View Receipt</a>

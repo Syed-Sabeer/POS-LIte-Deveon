@@ -51,6 +51,8 @@ Route::middleware('guest')->group(function () {
     Route::post('stock/adjust', [StockController::class, 'adjust'])->name('stock.adjust');
 
     Route::get('reports/sales', [PosController::class, 'reports'])->name('reports.sales');
+    Route::get('reports/sales/export/excel', [PosController::class, 'exportDailySalesExcel'])->name('reports.sales.export.excel');
+    Route::get('reports/sales/export/pdf', [PosController::class, 'exportDailySalesPdf'])->name('reports.sales.export.pdf');
 // });
 
 

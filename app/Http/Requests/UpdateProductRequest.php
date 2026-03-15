@@ -18,7 +18,7 @@ class UpdateProductRequest extends FormRequest
             'cost_price' => 'required|numeric|min:0',
             'selling_price' => 'required|numeric|min:0',
             'quantity' => 'required|integer|min:0',
-            'unit' => 'required|string|max:50',
+            'unit' => 'required|in:kg,pcs',
             'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ];
     }

@@ -52,8 +52,8 @@
                             @endif
                         </td>
                         <td>{{ $product->name }}</td>
-                        <td>${{ number_format($product->cost_price, 2) }}</td>
-                        <td>${{ number_format($product->selling_price, 2) }}</td>
+                        <td>PKR {{ number_format($product->cost_price, 2) }}</td>
+                        <td>PKR {{ number_format($product->selling_price, 2) }}</td>
                         <td>{{ $product->quantity }} {{ $product->unit ?? 'pcs' }}</td>
                         <td>
                             <a href="{{ route('admin.products.show', $product) }}" class="btn btn-info btn-sm">View</a>

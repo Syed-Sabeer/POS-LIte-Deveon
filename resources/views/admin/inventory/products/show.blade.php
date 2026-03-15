@@ -28,8 +28,8 @@
             </div>
             <div class="col-md-8">
                 <h4>{{ $product->name }}</h4>
-                <p><strong>Cost Price:</strong> ${{ number_format($product->cost_price, 2) }}</p>
-                <p><strong>Selling Price:</strong> ${{ number_format($product->selling_price, 2) }}</p>
+                <p><strong>Cost Price:</strong> PKR {{ number_format($product->cost_price, 2) }}</p>
+                <p><strong>Selling Price:</strong> PKR {{ number_format($product->selling_price, 2) }}</p>
                 <p><strong>Stock:</strong> {{ $product->quantity }} {{ $product->unit ?? 'pcs' }}</p>
                 <p><strong>Status:</strong> {{ $product->is_active ? 'Active' : 'Inactive' }}</p>
                 <p><strong>Created At:</strong> {{ $product->created_at->format('Y-m-d H:i') }}</p>

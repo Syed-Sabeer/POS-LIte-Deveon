@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\DailySalesExport;
 use App\Models\Customer;
 use App\Models\PosOrder;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Maatwebsite\Excel\Facades\Excel;
 
 class PosController extends Controller
 {
@@ -119,12 +122,55 @@ class PosController extends Controller
 
     public function reports()
     {
-        $dailySales = PosOrder::whereDate('created_at', today())->sum('total');
+        $reportDate = request('date', now()->toDateString());
+
+        $dailyOrders = PosOrder::with(['customer', 'items'])
+            ->whereDate('created_at', $reportDate)
+            ->latest()
+            ->get();
+
+        $dailySales = $dailyOrders->sum('total');
         $weeklySales = PosOrder::whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])->sum('total');
         $monthlySales = PosOrder::whereYear('created_at', now()->year)
             ->whereMonth('created_at', now()->month)
             ->sum('total');
 
-        return view('reports.sales', compact('dailySales', 'weeklySales', 'monthlySales'));
+        $summary = [
+            'total_orders' => $dailyOrders->count(),
+            'total_items_sold' => $dailyOrders->sum(fn ($order) => $order->items->sum('quantity')),
+            'total_discount' => $dailyOrders->sum(fn ($order) => $order->items->sum('discount_amount')),
+            'total_earning' => $dailySales,
+        ];
+
+        return view('reports.sales', compact('dailySales', 'weeklySales', 'monthlySales', 'dailyOrders', 'summary', 'reportDate'));
+    }
+
+    public function exportDailySalesExcel(Request $request)
+    {
+        $reportDate = $request->input('date', now()->toDateString());
+        $filename = 'daily-sales-' . $reportDate . '.xlsx';
+
+        return Excel::download(new DailySalesExport($reportDate), $filename);
+    }
+
+    public function exportDailySalesPdf(Request $request)
+    {
+        $reportDate = $request->input('date', now()->toDateString());
+
+        $dailyOrders = PosOrder::with(['customer', 'items'])
+            ->whereDate('created_at', $reportDate)
+            ->latest()
+            ->get();
+
+        $summary = [
+            'total_orders' => $dailyOrders->count(),
+            'total_items_sold' => $dailyOrders->sum(fn ($order) => $order->items->sum('quantity')),
+            'total_discount' => $dailyOrders->sum(fn ($order) => $order->items->sum('discount_amount')),
+            'total_earning' => $dailyOrders->sum('total'),
+        ];
+
+        $pdf = Pdf::loadView('reports.sales-pdf', compact('dailyOrders', 'summary', 'reportDate'));
+
+        return $pdf->download('daily-sales-' . $reportDate . '.pdf');
     }
 }

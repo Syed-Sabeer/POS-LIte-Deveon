@@ -50,20 +50,20 @@
                         <tr>
                             <td>{{ $item->product_name }}</td>
                             <td class="text-center">{{ $item->quantity }}</td>
-                            <td class="text-end">${{ number_format($item->unit_price, 2) }}</td>
-                            <td class="text-end">${{ number_format($item->discount_amount, 2) }}</td>
-                            <td class="text-end">${{ number_format($item->line_total, 2) }}</td>
+                            <td class="text-end">PKR {{ number_format($item->unit_price, 2) }}</td>
+                            <td class="text-end">PKR {{ number_format($item->discount_amount, 2) }}</td>
+                            <td class="text-end">PKR {{ number_format($item->line_total, 2) }}</td>
                         </tr>
                     @endforeach
                 </tbody>
                 <tfoot>
                     <tr>
                         <th colspan="4" class="text-end">Subtotal</th>
-                        <th class="text-end">${{ number_format($order->subtotal, 2) }}</th>
+                        <th class="text-end">PKR {{ number_format($order->subtotal, 2) }}</th>
                     </tr>
                     <tr>
                         <th colspan="4" class="text-end">Total</th>
-                        <th class="text-end">${{ number_format($order->total, 2) }}</th>
+                        <th class="text-end">PKR {{ number_format($order->total, 2) }}</th>
                     </tr>
                 </tfoot>
             </table>

@@ -4,8 +4,6 @@
 
 @section('css')
 <style>
-.sidebar { display: none !important; }
-.page-wrapper { margin-left: 0 !important; }
 .line-discount { width: 92px; }
 </style>
 @endsection
@@ -41,7 +39,7 @@
                                 <h6 class="product-name mb-1">{{ $product->name }}</h6>
                                 <p class="mb-2 fs-12 text-muted">Stock: {{ $product->quantity }} {{ $product->unit ?? 'pcs' }}</p>
                                 <div class="d-flex align-items-center justify-content-between">
-                                    <p class="text-gray-9 mb-0">${{ number_format($product->selling_price, 2) }}</p>
+                                    <p class="text-gray-9 mb-0">PKR {{ number_format($product->selling_price, 2) }}</p>
                                     <button type="button" class="btn btn-sm btn-primary add-to-cart"
                                         data-id="{{ $product->id }}"
                                         data-name="{{ $product->name }}"
@@ -162,7 +160,7 @@
     const checkoutBtn = document.getElementById('checkoutBtn');
     const itemsCount = document.getElementById('itemsCount');
 
-    function money(value) { return '$' + Number(value).toFixed(2); }
+    function money(value) { return 'PKR ' + Number(value).toFixed(2); }
 
     function renderCart() {
         cartBody.innerHTML = '';
