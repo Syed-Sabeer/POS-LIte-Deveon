@@ -32,6 +32,8 @@
         <div class="mb-3">
             <p class="mb-1"><strong>Customer:</strong> {{ $order->customer?->full_name ?: $order->customer_name }}</p>
             <p class="mb-0"><strong>Payment Method:</strong> {{ strtoupper($order->payment_method) }}</p>
+            <p class="mb-0"><strong>Invoice Date:</strong> {{ optional($order->invoice_date)->format('Y-m-d') }}</p>
+            <p class="mb-0"><strong>Payment Status:</strong> {{ strtoupper($order->payment_status) }}</p>
         </div>
 
         <div class="table-responsive">
@@ -62,8 +64,24 @@
                         <th class="text-end">PKR {{ number_format($order->subtotal, 2) }}</th>
                     </tr>
                     <tr>
+                        <th colspan="4" class="text-end">Invoice Discount</th>
+                        <th class="text-end">PKR {{ number_format($order->discount_amount, 2) }}</th>
+                    </tr>
+                    <tr>
+                        <th colspan="4" class="text-end">Tax</th>
+                        <th class="text-end">PKR {{ number_format($order->tax_amount, 2) }}</th>
+                    </tr>
+                    <tr>
                         <th colspan="4" class="text-end">Total</th>
                         <th class="text-end">PKR {{ number_format($order->total, 2) }}</th>
+                    </tr>
+                    <tr>
+                        <th colspan="4" class="text-end">Paid</th>
+                        <th class="text-end">PKR {{ number_format($order->paid_amount, 2) }}</th>
+                    </tr>
+                    <tr>
+                        <th colspan="4" class="text-end">Due</th>
+                        <th class="text-end">PKR {{ number_format($order->due_amount, 2) }}</th>
                     </tr>
                 </tfoot>
             </table>

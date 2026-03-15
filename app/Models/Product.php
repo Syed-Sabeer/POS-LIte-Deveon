@@ -17,4 +17,9 @@ class Product extends Model
         'image',
         'is_active',
     ];
+
+    public function purchaseInvoiceItems()
+    {
+        return $this->hasMany(PurchaseInvoiceItem::class);
+    }
 }

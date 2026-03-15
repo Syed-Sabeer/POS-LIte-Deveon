@@ -46,6 +46,23 @@
                 <label class="form-label">Address</label>
                 <input type="text" name="address" class="form-control">
             </div>
+            <div class="col-md-3">
+                <label class="form-label">Opening Balance</label>
+                <input type="number" step="0.01" min="0" name="opening_balance" class="form-control" value="0">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Balance Type</label>
+                <select name="balance_type" class="form-control">
+                    <option value="dr">DR</option>
+                    <option value="cr">CR</option>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="is_active" id="customerActive" value="1" checked>
+                    <label class="form-check-label" for="customerActive">Active</label>
+                </div>
+            </div>
             <div class="col-12 text-end">
                 <button class="btn btn-primary" type="submit">Save Customer</button>
             </div>
@@ -64,6 +81,8 @@
                         <th>Phone</th>
                         <th>Email</th>
                         <th>Address</th>
+                        <th>Opening</th>
+                        <th>Status</th>
                         <th>Created</th>
                     </tr>
                 </thead>
@@ -75,11 +94,13 @@
                             <td>{{ $customer->phone ?: '-' }}</td>
                             <td>{{ $customer->email ?: '-' }}</td>
                             <td>{{ $customer->address ?: '-' }}</td>
+                            <td>{{ strtoupper($customer->balance_type) }} PKR {{ number_format($customer->opening_balance ?? 0, 2) }}</td>
+                            <td>{{ $customer->is_active ? 'Active' : 'Inactive' }}</td>
                             <td>{{ $customer->created_at->format('Y-m-d') }}</td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="text-center">No customers found.</td>
+                            <td colspan="8" class="text-center">No customers found.</td>
                         </tr>
                     @endforelse
                 </tbody>

@@ -15,10 +15,28 @@ class Customer extends Model
         'phone',
         'email',
         'address',
+        'opening_balance',
+        'balance_type',
+        'is_active',
+    ];
+
+    protected $casts = [
+        'opening_balance' => 'decimal:2',
+        'is_active' => 'boolean',
     ];
 
     public function posOrders()
     {
         return $this->hasMany(PosOrder::class);
+    }
+
+    public function customerPayments()
+    {
+        return $this->hasMany(CustomerPayment::class);
+    }
+
+    public function partyLedgers()
+    {
+        return $this->hasMany(PartyLedger::class, 'party_id')->where('party_type', PartyLedger::TYPE_CUSTOMER);
     }
 }

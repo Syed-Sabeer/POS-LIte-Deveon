@@ -28,7 +28,10 @@
                         <th>Order #</th>
                         <th>Customer</th>
                         <th>Payment</th>
+                        <th>Status</th>
                         <th>Items</th>
+                        <th>Paid</th>
+                        <th>Due</th>
                         <th>Total</th>
                         <th>Date</th>
                         <th>Action</th>
@@ -40,7 +43,10 @@
                             <td>{{ $order->order_number }}</td>
                             <td>{{ $order->customer?->full_name ?: $order->customer_name }}</td>
                             <td>{{ strtoupper($order->payment_method) }}</td>
+                            <td><span class="badge bg-{{ $order->payment_status === 'paid' ? 'success' : ($order->payment_status === 'partial' ? 'warning' : 'danger') }}">{{ strtoupper($order->payment_status) }}</span></td>
                             <td>{{ $order->items_count }}</td>
+                            <td>PKR {{ number_format($order->paid_amount, 2) }}</td>
+                            <td>PKR {{ number_format($order->due_amount, 2) }}</td>
                             <td>PKR {{ number_format($order->total, 2) }}</td>
                             <td>{{ $order->created_at->format('Y-m-d H:i') }}</td>
                             <td>
@@ -49,7 +55,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="text-center">No orders found.</td>
+                            <td colspan="10" class="text-center">No orders found.</td>
                         </tr>
                     @endforelse
                 </tbody>

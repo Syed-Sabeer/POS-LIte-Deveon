@@ -102,18 +102,21 @@
 					</li> --}}
 					<!-- /Select Store -->
 
-					<li class="nav-item dropdown link-nav">
-						<a href="{{ route('products.create') }}" class="btn btn-primary btn-md d-inline-flex align-items-center" data-bs-toggle="dropdown">
-							<i class="ti ti-circle-plus me-1"></i>Add New
-						</a>
+					@can('manage products')
+						<li class="nav-item dropdown link-nav">
+							<a href="{{ route('products.create') }}" class="btn btn-primary btn-md d-inline-flex align-items-center">
+								<i class="ti ti-circle-plus me-1"></i>Add New
+							</a>
+						</li>
+					@endcan
 
-					</li>
-
-					<li class="nav-item pos-nav">
-						<a href="pos.html" class="btn btn-dark btn-md d-inline-flex align-items-center">
-							<i class="ti ti-device-laptop me-1"></i>POS
-						</a>
-					</li>
+					@can('pos checkout')
+						<li class="nav-item pos-nav">
+							<a href="{{ route('pos.index') }}" class="btn btn-dark btn-md d-inline-flex align-items-center">
+								<i class="ti ti-device-laptop me-1"></i>POS
+							</a>
+						</li>
+					@endcan
 
 					<!-- Flag -->
 					{{-- <li class="nav-item dropdown has-arrow flag-nav nav-item-box">

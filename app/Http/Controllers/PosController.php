@@ -3,9 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Exports\DailySalesExport;
+use App\Http\Requests\PosCheckoutRequest;
+use App\Models\Account;
 use App\Models\Customer;
 use App\Models\PosOrder;
 use App\Models\Product;
+use App\Services\Accounting\PostingService;
+use App\Support\FinanceNumber;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -14,6 +18,10 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class PosController extends Controller
 {
+    public function __construct(private readonly PostingService $postingService)
+    {
+    }
+
     public function index()
     {
         $products = Product::where('is_active', true)
@@ -26,20 +34,13 @@ class PosController extends Controller
         return view('pos.index', compact('products', 'customers'));
     }
 
-    public function checkout(Request $request)
+    public function checkout(PosCheckoutRequest $request)
     {
-        $validated = $request->validate([
-            'customer_id' => ['nullable', 'integer', 'exists:customers,id'],
-            'customer_name' => ['nullable', 'string', 'max:255'],
-            'payment_method' => ['required', 'in:cash,card,upi'],
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
-            'items.*.quantity' => ['required', 'integer', 'min:1'],
-            'items.*.discount' => ['nullable', 'numeric', 'min:0'],
-        ]);
+        $validated = $request->validated();
 
         $order = DB::transaction(function () use ($validated, $request) {
-            $subtotal = 0;
+            $grossSubtotal = 0;
+            $lineDiscountTotal = 0;
             $lines = [];
 
             foreach ($validated['items'] as $item) {
@@ -57,7 +58,8 @@ class PosController extends Controller
                     $discount = $grossLine;
                 }
                 $lineTotal = $grossLine - $discount;
-                $subtotal += $lineTotal;
+                $grossSubtotal += $grossLine;
+                $lineDiscountTotal += $discount;
 
                 $lines[] = [
                     'product' => $product,
@@ -75,14 +77,40 @@ class PosController extends Controller
                 $customer = Customer::find($validated['customer_id']);
             }
 
+            $additionalDiscount = (float) ($validated['additional_discount'] ?? 0);
+            $taxAmount = (float) ($validated['tax_amount'] ?? 0);
+            $discountAmount = min($grossSubtotal, $lineDiscountTotal + $additionalDiscount);
+            $total = max(0, ($grossSubtotal - $discountAmount) + $taxAmount);
+
+            $paidAmount = min($total, (float) ($validated['paid_amount'] ?? $total));
+            $dueAmount = $total - $paidAmount;
+
+            if ($dueAmount > 0 && empty($customer)) {
+                throw ValidationException::withMessages([
+                    'customer_id' => 'Customer is required for partial/unpaid sales.',
+                ]);
+            }
+
+            $paymentStatus = $dueAmount <= 0
+                ? PosOrder::PAYMENT_STATUS_PAID
+                : ($paidAmount > 0 ? PosOrder::PAYMENT_STATUS_PARTIAL : PosOrder::PAYMENT_STATUS_UNPAID);
+
             $order = PosOrder::create([
-                'order_number' => 'POS-' . now()->format('YmdHis') . '-' . random_int(100, 999),
+                'order_number' => FinanceNumber::next('SINV', PosOrder::class, 'order_number'),
                 'user_id' => $request->user()?->id,
                 'customer_id' => $customer?->id,
                 'customer_name' => $customer?->full_name ?: ($validated['customer_name'] ?: 'Walk in Customer'),
                 'payment_method' => $validated['payment_method'],
-                'subtotal' => $subtotal,
-                'total' => $subtotal,
+                'invoice_date' => $validated['invoice_date'],
+                'subtotal' => $grossSubtotal,
+                'discount_amount' => $discountAmount,
+                'tax_amount' => $taxAmount,
+                'total' => $total,
+                'paid_amount' => $paidAmount,
+                'due_amount' => $dueAmount,
+                'payment_status' => $paymentStatus,
+                'status' => 'completed',
+                'notes' => $validated['notes'] ?? null,
             ]);
 
             foreach ($lines as $line) {
@@ -95,6 +123,10 @@ class PosController extends Controller
                     'line_total' => $line['line_total'],
                 ]);
             }
+
+            $cashAccountCode = $validated['payment_method'] === 'bank' ? Account::CODE_BANK : Account::CODE_CASH;
+            $cashAccountId = Account::where('code', $cashAccountCode)->value('id');
+            $this->postingService->postSale($order->fresh('items.product'), $cashAccountId ? (int) $cashAccountId : null, $request->user()?->id);
 
             return $order;
         });

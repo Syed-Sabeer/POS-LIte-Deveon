@@ -103,10 +103,19 @@
                         </div>
 
                         <table class="table table-borderless mb-3">
-                            <tr><td>Sub Total</td><td class="text-end" id="subTotal">$0.00</td></tr>
-                            <tr><td>Total Discount</td><td class="text-end" id="discountTotal">$0.00</td></tr>
-                            <tr><td class="fw-bold border-top">Total Payable</td><td class="text-end fw-bold border-top" id="totalPayable">$0.00</td></tr>
+                            <tr><td>Sub Total</td><td class="text-end" id="subTotal">PKR 0.00</td></tr>
+                            <tr><td>Line Discount</td><td class="text-end" id="discountTotal">PKR 0.00</td></tr>
+                            <tr><td>Extra Discount</td><td class="text-end"><input type="number" step="0.01" min="0" name="additional_discount" id="additionalDiscount" class="form-control form-control-sm text-end" value="0"></td></tr>
+                            <tr><td>Tax</td><td class="text-end"><input type="number" step="0.01" min="0" name="tax_amount" id="taxAmount" class="form-control form-control-sm text-end" value="0"></td></tr>
+                            <tr><td class="fw-bold border-top">Total Payable</td><td class="text-end fw-bold border-top" id="totalPayable">PKR 0.00</td></tr>
+                            <tr><td>Paid Amount</td><td class="text-end"><input type="number" step="0.01" min="0" name="paid_amount" id="paidAmount" class="form-control form-control-sm text-end" value="0"></td></tr>
+                            <tr><td class="fw-bold">Due Amount</td><td class="text-end fw-bold" id="dueAmount">PKR 0.00</td></tr>
                         </table>
+
+                        <div class="mb-3">
+                            <label class="form-label">Invoice Date <span class="text-danger">*</span></label>
+                            <input type="date" name="invoice_date" class="form-control" value="{{ old('invoice_date', now()->toDateString()) }}" required>
+                        </div>
 
                         <div class="mb-3">
                             <label class="form-label">Payment Method <span class="text-danger">*</span></label>
@@ -114,7 +123,13 @@
                                 <option value="cash">Cash</option>
                                 <option value="card">Card</option>
                                 <option value="upi">UPI</option>
+                                <option value="bank">Bank</option>
                             </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Notes</label>
+                            <textarea name="notes" class="form-control" rows="2"></textarea>
                         </div>
 
                         <div id="hiddenItems"></div>
@@ -157,6 +172,10 @@
     const subTotalEl = document.getElementById('subTotal');
     const discountTotalEl = document.getElementById('discountTotal');
     const totalPayableEl = document.getElementById('totalPayable');
+    const dueAmountEl = document.getElementById('dueAmount');
+    const additionalDiscountEl = document.getElementById('additionalDiscount');
+    const taxAmountEl = document.getElementById('taxAmount');
+    const paidAmountEl = document.getElementById('paidAmount');
     const checkoutBtn = document.getElementById('checkoutBtn');
     const itemsCount = document.getElementById('itemsCount');
 
@@ -165,7 +184,7 @@
     function renderCart() {
         cartBody.innerHTML = '';
         hiddenItems.innerHTML = '';
-        let subtotal = 0; let discountTotal = 0; let payable = 0; let index = 0;
+        let subtotal = 0; let discountTotal = 0; let payableBeforeHeader = 0; let index = 0;
 
         if (cart.size === 0) {
             cartBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No products selected</td></tr>';
@@ -180,7 +199,7 @@
             if (discount > gross) { discount = gross; }
             item.discount = discount;
             const lineTotal = gross - discount;
-            subtotal += gross; discountTotal += discount; payable += lineTotal;
+            subtotal += gross; discountTotal += discount; payableBeforeHeader += lineTotal;
 
             const row = document.createElement('tr');
             row.innerHTML = `
@@ -198,12 +217,25 @@
             index++;
         });
 
+        const extraDiscount = Math.max(0, Number(additionalDiscountEl.value || 0));
+        const tax = Math.max(0, Number(taxAmountEl.value || 0));
+        const totalPayable = Math.max(0, payableBeforeHeader - extraDiscount + tax);
+        let paid = Number(paidAmountEl.value || 0);
+        if (!Number.isFinite(paid) || paid < 0) { paid = 0; }
+        if (paid > totalPayable) { paid = totalPayable; }
+        paidAmountEl.value = paid.toFixed(2);
+
         subTotalEl.textContent = money(subtotal);
-        discountTotalEl.textContent = money(discountTotal);
-        totalPayableEl.textContent = money(payable);
+        discountTotalEl.textContent = money(discountTotal + extraDiscount);
+        totalPayableEl.textContent = money(totalPayable);
+        dueAmountEl.textContent = money(totalPayable - paid);
         itemsCount.textContent = 'Items: ' + cart.size;
         checkoutBtn.disabled = false;
     }
+
+    [additionalDiscountEl, taxAmountEl, paidAmountEl].forEach((el) => {
+        el.addEventListener('input', renderCart);
+    });
 
     document.querySelectorAll('.add-to-cart').forEach((btn) => {
         btn.addEventListener('click', function () {
