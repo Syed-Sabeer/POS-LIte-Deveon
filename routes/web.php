@@ -22,9 +22,30 @@ use App\Http\Controllers\PurchaseInvoiceController;
 use App\Http\Controllers\StockController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\SupplierPaymentController;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 
 Route::post('stripe/webhook', [BillingController::class, 'webhook'])->name('billing.webhook');
+
+Route::middleware('auth')->get('storage-link', function () {
+    try {
+        // Remove old symlink if it exists, then recreate it.
+        Artisan::call('storage:unlink');
+        Artisan::call('storage:link');
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Storage link recreated successfully.',
+            'unlink_output' => trim(Artisan::output()),
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'ok' => false,
+            'message' => 'Failed to recreate storage link.',
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+})->name('storage.link');
 
 Route::get('/', function () {
     return auth()->check()
