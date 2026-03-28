@@ -23,6 +23,7 @@
                         <h6 class="submenu-hdr">Main</h6>
                         <ul>
                             <li><a href="{{ route('home') }}"><i class="ti ti-layout-grid fs-16 me-2"></i><span>Dashboard</span></a></li>
+                            <li><a href="{{ route('billing.index') }}"><i class="ti ti-credit-card fs-16 me-2"></i><span>Organization Billing</span></a></li>
                         </ul>
                     </li>
                 @endcan

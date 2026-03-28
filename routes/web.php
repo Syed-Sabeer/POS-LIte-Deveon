@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\RoleManagementController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\BalanceSheetController;
+use App\Http\Controllers\BillingController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
@@ -22,6 +23,8 @@ use App\Http\Controllers\StockController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\SupplierPaymentController;
 use Illuminate\Support\Facades\Route;
+
+Route::post('stripe/webhook', [BillingController::class, 'webhook'])->name('billing.webhook');
 
 Route::get('/', function () {
     return auth()->check()
@@ -41,7 +44,11 @@ Route::middleware('guest')->group(function () {
     Route::post('reset-password', [AuthController::class, 'resetPassword'])->name('password.update');
 });
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'subscription.active'])->group(function () {
+    Route::get('billing', [BillingController::class, 'index'])->name('billing.index');
+    Route::post('billing/subscribe', [BillingController::class, 'subscribe'])->name('billing.subscribe');
+    Route::post('billing/confirm', [BillingController::class, 'confirm'])->name('billing.confirm');
+
     Route::get('login-verification', [AuthController::class, 'login_verification'])->name('login.verification');
     Route::post('logout', [AuthController::class, 'logout'])->name('logout');
     Route::post('verify-account', [AuthController::class, 'verify_account'])->name('verify.account');
