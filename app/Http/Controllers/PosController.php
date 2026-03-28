@@ -38,8 +38,29 @@ class PosController extends Controller
     public function checkout(PosCheckoutRequest $request)
     {
         $validated = $request->validated();
+        $order = $this->processCheckout($validated, $request->user()?->id);
 
-        $order = DB::transaction(function () use ($validated, $request) {
+        return redirect()
+            ->route('pos.orders.show', $order)
+            ->with('success', 'Checkout completed successfully.');
+    }
+
+    public function checkoutSync(PosCheckoutRequest $request)
+    {
+        $validated = $request->validated();
+        $order = $this->processCheckout($validated, $request->user()?->id);
+
+        return response()->json([
+            'ok' => true,
+            'order_id' => $order->id,
+            'order_number' => $order->order_number,
+            'message' => 'Checkout synced successfully.',
+        ]);
+    }
+
+    private function processCheckout(array $validated, ?int $userId): PosOrder
+    {
+        return DB::transaction(function () use ($validated, $userId) {
             $grossSubtotal = 0;
             $lineDiscountTotal = 0;
             $lines = [];
@@ -75,7 +96,7 @@ class PosController extends Controller
             }
 
             $customer = null;
-            if (!empty($validated['customer_id'])) {
+            if (! empty($validated['customer_id'])) {
                 $customer = Customer::find($validated['customer_id']);
             }
 
@@ -116,7 +137,7 @@ class PosController extends Controller
 
             $order = PosOrder::create([
                 'order_number' => FinanceNumber::next('SINV', PosOrder::class, 'order_number'),
-                'user_id' => $request->user()?->id,
+                'user_id' => $userId,
                 'customer_id' => $customer?->id,
                 'customer_name' => $customer?->full_name ?: ($validated['customer_name'] ?: 'Walk in Customer'),
                 'payment_method' => $validated['payment_method'],
@@ -154,14 +175,10 @@ class PosController extends Controller
             } elseif ($paymentMethod === 'cheque') {
                 $cashAccountId = Account::where('code', Account::CODE_BANK)->value('id');
             }
-            $this->postingService->postSale($order->fresh('items.product'), $cashAccountId ? (int) $cashAccountId : null, $request->user()?->id);
+            $this->postingService->postSale($order->fresh('items.product'), $cashAccountId ? (int) $cashAccountId : null, $userId);
 
             return $order;
         });
-
-        return redirect()
-            ->route('pos.orders.show', $order)
-            ->with('success', 'Checkout completed successfully.');
     }
 
     public function orders()

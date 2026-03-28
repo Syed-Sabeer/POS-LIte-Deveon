@@ -100,6 +100,7 @@ Route::middleware(['auth', 'subscription.active'])->group(function () {
 
     Route::get('poss', [PosController::class, 'index'])->middleware('permission:pos checkout')->name('pos.index');
     Route::post('pos/checkout', [PosController::class, 'checkout'])->middleware('permission:pos checkout')->name('pos.checkout');
+    Route::post('pos/checkout-sync', [PosController::class, 'checkoutSync'])->middleware('permission:pos checkout')->name('pos.checkout.sync');
     Route::get('pos/orders', [PosController::class, 'orders'])->middleware('permission:pos orders')->name('pos.orders');
     Route::get('pos/orders/{order}', [PosController::class, 'show'])->middleware('permission:pos orders')->name('pos.orders.show');
 

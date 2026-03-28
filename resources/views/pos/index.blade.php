@@ -166,6 +166,11 @@
                         <h3 class="mb-0">Order List</h3>
                         <span class="badge badge-dark fs-10 fw-medium badge-xs" id="itemsCount">Items: 0</span>
                     </div>
+                    <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
+                        <span class="badge bg-success" id="networkStatus">Online</span>
+                        <span class="badge bg-warning text-dark" id="pendingSyncBadge">Pending Sync: 0</span>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="syncNowBtn">Sync Now</button>
+                    </div>
 
                     @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
                     @if($errors->any())
@@ -262,7 +267,11 @@
 @section('script')
 <script>
 (function () {
+    const OFFLINE_QUEUE_KEY = 'posOfflineOrdersQueueV1';
+    const csrfToken = '{{ csrf_token() }}';
+    const syncEndpoint = '{{ route('pos.checkout.sync') }}';
     const cart = new Map();
+    const checkoutForm = document.getElementById('checkoutForm');
     const cartBody = document.getElementById('cartBody');
     const hiddenItems = document.getElementById('hiddenItems');
     const subTotalEl = document.getElementById('subTotal');
@@ -276,8 +285,131 @@
     const customerSelectEl = document.getElementById('customerSelect');
     const checkoutBtn = document.getElementById('checkoutBtn');
     const itemsCount = document.getElementById('itemsCount');
+    const networkStatusEl = document.getElementById('networkStatus');
+    const pendingSyncBadgeEl = document.getElementById('pendingSyncBadge');
+    const syncNowBtn = document.getElementById('syncNowBtn');
 
     function money(value) { return 'PKR ' + Number(value).toFixed(2); }
+
+    function getQueue() {
+        try {
+            const raw = localStorage.getItem(OFFLINE_QUEUE_KEY);
+            const parsed = raw ? JSON.parse(raw) : [];
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function saveQueue(queue) {
+        localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+        updatePendingBadge();
+    }
+
+    function updatePendingBadge() {
+        const pending = getQueue().length;
+        pendingSyncBadgeEl.textContent = 'Pending Sync: ' + pending;
+    }
+
+    function updateNetworkStatus() {
+        if (navigator.onLine) {
+            networkStatusEl.textContent = 'Online';
+            networkStatusEl.classList.remove('bg-danger');
+            networkStatusEl.classList.add('bg-success');
+            syncNowBtn.disabled = false;
+        } else {
+            networkStatusEl.textContent = 'Offline';
+            networkStatusEl.classList.remove('bg-success');
+            networkStatusEl.classList.add('bg-danger');
+            syncNowBtn.disabled = true;
+        }
+    }
+
+    function buildCheckoutPayload() {
+        const items = [];
+        cart.forEach((item) => {
+            items.push({
+                product_id: item.id,
+                quantity: item.quantity,
+                discount: Number(item.discount || 0),
+            });
+        });
+
+        return {
+            customer_id: customerSelectEl.value || null,
+            customer_name: customerSelectEl.value ? '' : 'Walk in Customer',
+            payment_method: paymentMethodEl.value,
+            invoice_date: checkoutForm.querySelector('input[name="invoice_date"]').value,
+            additional_discount: Number(additionalDiscountEl.value || 0),
+            paid_amount: Number(paidAmountEl.value || 0),
+            items,
+        };
+    }
+
+    function validateOfflinePayload(payload) {
+        if (!payload.items || payload.items.length === 0) {
+            return 'Add at least one item before checkout.';
+        }
+        if (!payload.customer_id && payload.payment_method === 'pay_later') {
+            return 'Walk in customer cannot use Pay Later.';
+        }
+
+        const subtotal = payload.items.reduce((sum, line) => {
+            const item = Array.from(cart.values()).find((ci) => ci.id === line.product_id);
+            if (!item) { return sum; }
+            const gross = Number(item.price) * Number(line.quantity);
+            const discount = Math.min(Number(line.discount || 0), gross);
+            return sum + (gross - discount);
+        }, 0);
+
+        const total = Math.max(0, subtotal - Number(payload.additional_discount || 0));
+        if (!payload.customer_id && payload.payment_method !== 'pay_later' && Number(payload.paid_amount || 0) < total) {
+            return 'Walk in customer must pay full amount.';
+        }
+
+        return null;
+    }
+
+    async function syncOfflineOrders() {
+        if (!navigator.onLine) {
+            return;
+        }
+
+        let queue = getQueue();
+        if (queue.length === 0) {
+            return;
+        }
+
+        syncNowBtn.disabled = true;
+        syncNowBtn.textContent = 'Syncing...';
+
+        const remaining = [];
+        for (const queued of queue) {
+            try {
+                const response = await fetch(syncEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': csrfToken,
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify(queued.payload),
+                });
+
+                if (!response.ok) {
+                    remaining.push(queued);
+                }
+            } catch (e) {
+                remaining.push(queued);
+            }
+        }
+
+        saveQueue(remaining);
+        syncNowBtn.textContent = 'Sync Now';
+        syncNowBtn.disabled = !navigator.onLine;
+    }
 
     function renderCart() {
         cartBody.innerHTML = '';
@@ -441,6 +573,49 @@
                 customerSelect.appendChild(emptyOption);
             }
         });
+    }
+
+    checkoutForm.addEventListener('submit', function (event) {
+        if (navigator.onLine) {
+            return;
+        }
+
+        event.preventDefault();
+        const payload = buildCheckoutPayload();
+        const validationError = validateOfflinePayload(payload);
+        if (validationError) {
+            alert(validationError);
+            return;
+        }
+
+        const queue = getQueue();
+        queue.push({
+            local_id: Date.now(),
+            payload,
+            queued_at: new Date().toISOString(),
+        });
+        saveQueue(queue);
+
+        cart.clear();
+        additionalDiscountEl.value = '0';
+        paidAmountEl.value = '0';
+        paymentMethodEl.value = 'cash';
+        renderCart();
+
+        alert('Internet is offline. Order saved locally and will sync automatically when connection returns.');
+    });
+
+    syncNowBtn.addEventListener('click', syncOfflineOrders);
+    window.addEventListener('online', function () {
+        updateNetworkStatus();
+        syncOfflineOrders();
+    });
+    window.addEventListener('offline', updateNetworkStatus);
+
+    updateNetworkStatus();
+    updatePendingBadge();
+    if (navigator.onLine) {
+        syncOfflineOrders();
     }
 })();
 </script>
