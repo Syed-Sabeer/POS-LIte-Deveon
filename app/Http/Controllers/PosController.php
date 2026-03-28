@@ -78,16 +78,33 @@ class PosController extends Controller
             }
 
             $additionalDiscount = (float) ($validated['additional_discount'] ?? 0);
-            $taxAmount = (float) ($validated['tax_amount'] ?? 0);
+            $taxAmount = 0;
             $discountAmount = min($grossSubtotal, $lineDiscountTotal + $additionalDiscount);
             $total = max(0, ($grossSubtotal - $discountAmount) + $taxAmount);
 
-            $paidAmount = min($total, (float) ($validated['paid_amount'] ?? $total));
-            $dueAmount = $total - $paidAmount;
+            $receivedAmount = max(0, (float) ($validated['paid_amount'] ?? 0));
+            $paymentMethod = $validated['payment_method'];
+
+            if (empty($customer) && $paymentMethod === 'pay_later') {
+                throw ValidationException::withMessages([
+                    'payment_method' => 'Walk in customer cannot use Pay Later.',
+                ]);
+            }
+
+            if ($paymentMethod === 'pay_later') {
+                $receivedAmount = 0;
+                $paidAmount = 0;
+                $changeAmount = 0;
+                $dueAmount = $total;
+            } else {
+                $paidAmount = min($receivedAmount, $total);
+                $changeAmount = max(0, $receivedAmount - $total);
+                $dueAmount = max(0, $total - $paidAmount);
+            }
 
             if ($dueAmount > 0 && empty($customer)) {
                 throw ValidationException::withMessages([
-                    'customer_id' => 'Customer is required for partial/unpaid sales.',
+                    'paid_amount' => 'Walk in customer must pay full amount. Select a customer to keep pending amount.',
                 ]);
             }
 
@@ -106,11 +123,15 @@ class PosController extends Controller
                 'discount_amount' => $discountAmount,
                 'tax_amount' => $taxAmount,
                 'total' => $total,
+                'total_amount' => $total,
                 'paid_amount' => $paidAmount,
+                'received_amount' => $receivedAmount,
+                'change_amount' => $changeAmount,
                 'due_amount' => $dueAmount,
                 'payment_status' => $paymentStatus,
                 'status' => 'completed',
-                'notes' => $validated['notes'] ?? null,
+                'posting_status' => 'posted',
+                'notes' => null,
             ]);
 
             foreach ($lines as $line) {
@@ -124,8 +145,12 @@ class PosController extends Controller
                 ]);
             }
 
-            $cashAccountCode = $validated['payment_method'] === 'bank' ? Account::CODE_BANK : Account::CODE_CASH;
-            $cashAccountId = Account::where('code', $cashAccountCode)->value('id');
+            $cashAccountId = null;
+            if ($paymentMethod === 'cash') {
+                $cashAccountId = Account::where('code', Account::CODE_CASH)->value('id');
+            } elseif ($paymentMethod === 'cheque') {
+                $cashAccountId = Account::where('code', Account::CODE_BANK)->value('id');
+            }
             $this->postingService->postSale($order->fresh('items.product'), $cashAccountId ? (int) $cashAccountId : null, $request->user()?->id);
 
             return $order;

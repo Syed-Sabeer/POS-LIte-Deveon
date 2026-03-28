@@ -18,6 +18,9 @@
 @if(session('success'))
     <div class="alert alert-success">{{ session('success') }}</div>
 @endif
+@if($errors->has('delete'))
+    <div class="alert alert-danger">{{ $errors->first('delete') }}</div>
+@endif
 
 <div class="card mb-3">
     <div class="card-header">
@@ -84,6 +87,7 @@
                         <th>Opening</th>
                         <th>Status</th>
                         <th>Created</th>
+                        <th class="text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -97,10 +101,20 @@
                             <td>{{ strtoupper($customer->balance_type) }} PKR {{ number_format($customer->opening_balance ?? 0, 2) }}</td>
                             <td>{{ $customer->is_active ? 'Active' : 'Inactive' }}</td>
                             <td>{{ $customer->created_at->format('Y-m-d') }}</td>
+                            <td class="text-center">
+                                <div class="d-inline-flex gap-2">
+                                    <a href="{{ route('customers.edit', $customer) }}" class="btn btn-sm btn-primary">Edit</a>
+                                    <form method="POST" action="{{ route('customers.destroy', $customer) }}" onsubmit="return confirm('Delete this customer? This cannot be undone.');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                    </form>
+                                </div>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="text-center">No customers found.</td>
+                            <td colspan="9" class="text-center">No customers found.</td>
                         </tr>
                     @endforelse
                 </tbody>

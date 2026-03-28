@@ -11,7 +11,7 @@ class AccountController extends Controller
     public function index()
     {
         $accounts = Account::with('parent')
-            ->orderBy('type')
+            ->orderByRaw('COALESCE(account_type, type)')
             ->orderBy('code')
             ->paginate(30);
 
@@ -20,17 +20,63 @@ class AccountController extends Controller
         return view('accounts.index', compact('accounts', 'parents'));
     }
 
+    public function tree()
+    {
+        $accounts = Account::where('is_active', true)->orderBy('code')->get();
+
+        $nodes = $accounts->map(function (Account $account) {
+            return [
+                'id' => $account->id,
+                'parent_id' => $account->parent_id,
+                'code' => $account->code,
+                'name' => $account->name,
+                'type' => $account->account_type ?: $account->type,
+            ];
+        })->all();
+
+        $childrenMap = [];
+        foreach ($nodes as $node) {
+            $childrenMap[(int) ($node['parent_id'] ?? 0)][] = $node;
+        }
+
+        $build = function (int $parentId) use (&$build, $childrenMap): array {
+            $items = $childrenMap[$parentId] ?? [];
+            foreach ($items as &$item) {
+                $item['children'] = $build((int) $item['id']);
+            }
+            return $items;
+        };
+
+        $tree = $build(0);
+
+        return view('accounts.tree', compact('tree'));
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'code' => ['required', 'string', 'max:50', 'unique:accounts,code'],
-            'type' => ['required', Rule::in(['asset', 'liability', 'equity', 'income', 'expense'])],
+            'account_type' => ['required', Rule::in(['asset', 'liability', 'equity', 'income', 'expense'])],
+            'account_subtype' => ['nullable', 'string', 'max:100'],
+            'normal_balance' => ['required', Rule::in(['debit', 'credit'])],
             'parent_id' => ['nullable', 'exists:accounts,id'],
             'is_active' => ['nullable', 'boolean'],
+            'notes' => ['nullable', 'string'],
         ]);
 
-        Account::create($validated + ['is_active' => $request->boolean('is_active', true)]);
+        Account::create([
+            'name' => $validated['name'],
+            'code' => $validated['code'],
+            'type' => $validated['account_type'],
+            'account_type' => $validated['account_type'],
+            'account_subtype' => $validated['account_subtype'] ?? null,
+            'normal_balance' => $validated['normal_balance'],
+            'parent_id' => $validated['parent_id'] ?? null,
+            'is_system' => false,
+            'is_active' => $request->boolean('is_active', true),
+            'notes' => $validated['notes'] ?? null,
+        ]);
 
         return back()->with('success', 'Account created successfully.');
     }
@@ -44,12 +90,25 @@ class AccountController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'code' => ['required', 'string', 'max:50', 'unique:accounts,code,' . $account->id],
-            'type' => ['required', Rule::in(['asset', 'liability', 'equity', 'income', 'expense'])],
+            'account_type' => ['required', Rule::in(['asset', 'liability', 'equity', 'income', 'expense'])],
+            'account_subtype' => ['nullable', 'string', 'max:100'],
+            'normal_balance' => ['required', Rule::in(['debit', 'credit'])],
             'parent_id' => ['nullable', 'exists:accounts,id'],
             'is_active' => ['nullable', 'boolean'],
+            'notes' => ['nullable', 'string'],
         ]);
 
-        $account->update($validated + ['is_active' => $request->boolean('is_active', true)]);
+        $account->update([
+            'name' => $validated['name'],
+            'code' => $validated['code'],
+            'type' => $validated['account_type'],
+            'account_type' => $validated['account_type'],
+            'account_subtype' => $validated['account_subtype'] ?? null,
+            'normal_balance' => $validated['normal_balance'],
+            'parent_id' => $validated['parent_id'] ?? null,
+            'is_active' => $request->boolean('is_active', true),
+            'notes' => $validated['notes'] ?? null,
+        ]);
 
         return back()->with('success', 'Account updated successfully.');
     }

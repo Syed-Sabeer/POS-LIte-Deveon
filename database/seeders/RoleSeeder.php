@@ -30,6 +30,14 @@ class RoleSeeder extends Seeder
             'view payables report',
             'manage chart of accounts',
             'view journal entries',
+            'manage accounts',
+            'manage receivables',
+            'manage payables',
+            'post accounting entries',
+            'view general ledger',
+            'view balance sheet',
+            'view customer statements',
+            'view vendor statements',
         ];
 
         foreach ($permissions as $permission) {

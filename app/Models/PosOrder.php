@@ -25,10 +25,14 @@ class PosOrder extends Model
         'discount_amount',
         'tax_amount',
         'total',
+        'total_amount',
         'paid_amount',
+        'received_amount',
+        'change_amount',
         'due_amount',
         'payment_status',
         'status',
+        'posting_status',
         'notes',
     ];
 
@@ -38,7 +42,10 @@ class PosOrder extends Model
         'discount_amount' => 'decimal:2',
         'tax_amount' => 'decimal:2',
         'total' => 'decimal:2',
+        'total_amount' => 'decimal:2',
         'paid_amount' => 'decimal:2',
+        'received_amount' => 'decimal:2',
+        'change_amount' => 'decimal:2',
         'due_amount' => 'decimal:2',
     ];
 

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Account;
-use App\Models\AccountTransaction;
+use App\Models\AccountLedgerEntry;
 use App\Models\Customer;
 use App\Models\PartyLedger;
 use App\Models\Supplier;
@@ -51,11 +51,11 @@ class LedgerController extends Controller
         $accounts = Account::orderBy('code')->get();
         $accountId = (int) request('account_id');
 
-        $entries = AccountTransaction::with('account')
+        $entries = AccountLedgerEntry::with('account')
             ->when($accountId, fn ($q) => $q->where('account_id', $accountId))
-            ->when(request('from_date'), fn ($q, $date) => $q->whereDate('transaction_date', '>=', $date))
-            ->when(request('to_date'), fn ($q, $date) => $q->whereDate('transaction_date', '<=', $date))
-            ->orderBy('transaction_date')
+            ->when(request('from_date'), fn ($q, $date) => $q->whereDate('entry_date', '>=', $date))
+            ->when(request('to_date'), fn ($q, $date) => $q->whereDate('entry_date', '<=', $date))
+            ->orderBy('entry_date')
             ->orderBy('id')
             ->paginate(30)
             ->withQueryString();
@@ -66,10 +66,10 @@ class LedgerController extends Controller
     public function cashBook()
     {
         $cashAccount = Account::where('code', Account::CODE_CASH)->firstOrFail();
-        $entries = AccountTransaction::where('account_id', $cashAccount->id)
-            ->when(request('from_date'), fn ($q, $date) => $q->whereDate('transaction_date', '>=', $date))
-            ->when(request('to_date'), fn ($q, $date) => $q->whereDate('transaction_date', '<=', $date))
-            ->orderBy('transaction_date')
+        $entries = AccountLedgerEntry::where('account_id', $cashAccount->id)
+            ->when(request('from_date'), fn ($q, $date) => $q->whereDate('entry_date', '>=', $date))
+            ->when(request('to_date'), fn ($q, $date) => $q->whereDate('entry_date', '<=', $date))
+            ->orderBy('entry_date')
             ->orderBy('id')
             ->paginate(30)
             ->withQueryString();
@@ -80,10 +80,10 @@ class LedgerController extends Controller
     public function bankBook()
     {
         $bankAccount = Account::where('code', Account::CODE_BANK)->firstOrFail();
-        $entries = AccountTransaction::where('account_id', $bankAccount->id)
-            ->when(request('from_date'), fn ($q, $date) => $q->whereDate('transaction_date', '>=', $date))
-            ->when(request('to_date'), fn ($q, $date) => $q->whereDate('transaction_date', '<=', $date))
-            ->orderBy('transaction_date')
+        $entries = AccountLedgerEntry::where('account_id', $bankAccount->id)
+            ->when(request('from_date'), fn ($q, $date) => $q->whereDate('entry_date', '>=', $date))
+            ->when(request('to_date'), fn ($q, $date) => $q->whereDate('entry_date', '<=', $date))
+            ->orderBy('entry_date')
             ->orderBy('id')
             ->paginate(30)
             ->withQueryString();

@@ -57,10 +57,12 @@ class PurchaseInvoiceController extends Controller
                 'discount_amount' => $computed['discount_amount'],
                 'tax_amount' => $computed['tax_amount'],
                 'total' => $computed['total'],
+                'total_amount' => $computed['total'],
                 'paid_amount' => $computed['paid_amount'],
                 'due_amount' => $computed['due_amount'],
                 'payment_status' => $computed['payment_status'],
                 'status' => $data['status'] ?? PurchaseInvoice::STATUS_DRAFT,
+                'posting_status' => $data['status'] ?? PurchaseInvoice::STATUS_DRAFT,
                 'notes' => $data['notes'] ?? null,
                 'created_by' => $request->user()?->id,
             ]);
@@ -117,9 +119,11 @@ class PurchaseInvoiceController extends Controller
                 'discount_amount' => $computed['discount_amount'],
                 'tax_amount' => $computed['tax_amount'],
                 'total' => $computed['total'],
+                'total_amount' => $computed['total'],
                 'paid_amount' => $computed['paid_amount'],
                 'due_amount' => $computed['due_amount'],
                 'payment_status' => $computed['payment_status'],
+                'posting_status' => $data['status'] ?? $purchase->posting_status,
                 'notes' => $data['notes'] ?? null,
             ]);
 
@@ -129,7 +133,7 @@ class PurchaseInvoiceController extends Controller
             }
 
             if (($data['status'] ?? PurchaseInvoice::STATUS_DRAFT) === PurchaseInvoice::STATUS_POSTED) {
-                $purchase->update(['status' => PurchaseInvoice::STATUS_POSTED]);
+                $purchase->update(['status' => PurchaseInvoice::STATUS_POSTED, 'posting_status' => PurchaseInvoice::STATUS_POSTED]);
                 $this->postInvoice($purchase->fresh('items.product'), $request->user()?->id);
             }
         });
@@ -145,7 +149,7 @@ class PurchaseInvoiceController extends Controller
 
         DB::transaction(function () use ($purchase) {
             $purchase->load('items.product');
-            $purchase->update(['status' => PurchaseInvoice::STATUS_POSTED]);
+            $purchase->update(['status' => PurchaseInvoice::STATUS_POSTED, 'posting_status' => PurchaseInvoice::STATUS_POSTED]);
             $this->postInvoice($purchase, auth()->id());
         });
 

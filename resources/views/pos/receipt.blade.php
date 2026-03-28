@@ -34,6 +34,8 @@
             <p class="mb-0"><strong>Payment Method:</strong> {{ strtoupper($order->payment_method) }}</p>
             <p class="mb-0"><strong>Invoice Date:</strong> {{ optional($order->invoice_date)->format('Y-m-d') }}</p>
             <p class="mb-0"><strong>Payment Status:</strong> {{ strtoupper($order->payment_status) }}</p>
+            <p class="mb-0"><strong>Received Amount:</strong> PKR {{ number_format($order->received_amount ?? $order->paid_amount, 2) }}</p>
+            <p class="mb-0"><strong>Return Amount:</strong> PKR {{ number_format($order->change_amount ?? 0, 2) }}</p>
         </div>
 
         <div class="table-responsive">
@@ -80,8 +82,12 @@
                         <th class="text-end">PKR {{ number_format($order->paid_amount, 2) }}</th>
                     </tr>
                     <tr>
-                        <th colspan="4" class="text-end">Due</th>
+                        <th colspan="4" class="text-end">Pending (Due)</th>
                         <th class="text-end">PKR {{ number_format($order->due_amount, 2) }}</th>
+                    </tr>
+                    <tr>
+                        <th colspan="4" class="text-end">Return</th>
+                        <th class="text-end">PKR {{ number_format($order->change_amount ?? 0, 2) }}</th>
                     </tr>
                 </tfoot>
             </table>

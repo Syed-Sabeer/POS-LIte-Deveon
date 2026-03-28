@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\AdminProductController;
 use App\Http\Controllers\Admin\RoleManagementController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\BalanceSheetController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
@@ -21,6 +22,12 @@ use App\Http\Controllers\StockController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\SupplierPaymentController;
 use Illuminate\Support\Facades\Route;
+
+Route::get('/', function () {
+    return auth()->check()
+        ? redirect()->route('home')
+        : redirect()->route('login');
+});
 
 Route::middleware('guest')->group(function () {
     Route::get('admin/login', [LoginController::class, 'login'])->name('login');
@@ -70,6 +77,9 @@ Route::middleware('auth')->group(function () {
 
     Route::get('customers', [CustomerController::class, 'index'])->middleware('permission:manage customers')->name('customers.index');
     Route::post('customers', [CustomerController::class, 'store'])->middleware('permission:manage customers')->name('customers.store');
+    Route::get('customers/{customer}/edit', [CustomerController::class, 'edit'])->middleware('permission:manage customers')->name('customers.edit');
+    Route::put('customers/{customer}', [CustomerController::class, 'update'])->middleware('permission:manage customers')->name('customers.update');
+    Route::delete('customers/{customer}', [CustomerController::class, 'destroy'])->middleware('permission:manage customers')->name('customers.destroy');
 
     Route::get('stock', [StockController::class, 'index'])->middleware('permission:manage stock')->name('stock.index');
     Route::post('stock/adjust', [StockController::class, 'adjust'])->middleware('permission:manage stock')->name('stock.adjust');
@@ -84,32 +94,34 @@ Route::middleware('auth')->group(function () {
     Route::put('purchases/{purchase}', [PurchaseInvoiceController::class, 'update'])->middleware('permission:manage purchases')->name('purchases.update');
     Route::post('purchases/{purchase}/post', [PurchaseInvoiceController::class, 'post'])->middleware('permission:manage purchases')->name('purchases.post');
 
-    Route::get('customer-payments', [CustomerPaymentController::class, 'index'])->middleware('permission:manage customer payments')->name('customer-payments.index');
-    Route::get('customer-payments/create', [CustomerPaymentController::class, 'create'])->middleware('permission:manage customer payments')->name('customer-payments.create');
-    Route::post('customer-payments', [CustomerPaymentController::class, 'store'])->middleware('permission:manage customer payments')->name('customer-payments.store');
-    Route::get('customer-payments/{customerPayment}', [CustomerPaymentController::class, 'show'])->middleware('permission:manage customer payments')->name('customer-payments.show');
-    Route::get('customer-payments/{customerPayment}/receipt', [CustomerPaymentController::class, 'receipt'])->middleware('permission:manage customer payments')->name('customer-payments.receipt');
+    Route::get('customer-payments', [CustomerPaymentController::class, 'index'])->middleware('role_or_permission:manage customer payments|manage receivables')->name('customer-payments.index');
+    Route::get('customer-payments/create', [CustomerPaymentController::class, 'create'])->middleware('role_or_permission:manage customer payments|manage receivables')->name('customer-payments.create');
+    Route::post('customer-payments', [CustomerPaymentController::class, 'store'])->middleware('role_or_permission:manage customer payments|manage receivables')->name('customer-payments.store');
+    Route::get('customer-payments/{customerPayment}', [CustomerPaymentController::class, 'show'])->middleware('role_or_permission:manage customer payments|manage receivables')->name('customer-payments.show');
+    Route::get('customer-payments/{customerPayment}/receipt', [CustomerPaymentController::class, 'receipt'])->middleware('role_or_permission:manage customer payments|manage receivables')->name('customer-payments.receipt');
 
-    Route::get('supplier-payments', [SupplierPaymentController::class, 'index'])->middleware('permission:manage supplier payments')->name('supplier-payments.index');
-    Route::get('supplier-payments/create', [SupplierPaymentController::class, 'create'])->middleware('permission:manage supplier payments')->name('supplier-payments.create');
-    Route::post('supplier-payments', [SupplierPaymentController::class, 'store'])->middleware('permission:manage supplier payments')->name('supplier-payments.store');
-    Route::get('supplier-payments/{supplierPayment}', [SupplierPaymentController::class, 'show'])->middleware('permission:manage supplier payments')->name('supplier-payments.show');
-    Route::get('supplier-payments/{supplierPayment}/voucher', [SupplierPaymentController::class, 'voucher'])->middleware('permission:manage supplier payments')->name('supplier-payments.voucher');
+    Route::get('supplier-payments', [SupplierPaymentController::class, 'index'])->middleware('role_or_permission:manage supplier payments|manage payables')->name('supplier-payments.index');
+    Route::get('supplier-payments/create', [SupplierPaymentController::class, 'create'])->middleware('role_or_permission:manage supplier payments|manage payables')->name('supplier-payments.create');
+    Route::post('supplier-payments', [SupplierPaymentController::class, 'store'])->middleware('role_or_permission:manage supplier payments|manage payables')->name('supplier-payments.store');
+    Route::get('supplier-payments/{supplierPayment}', [SupplierPaymentController::class, 'show'])->middleware('role_or_permission:manage supplier payments|manage payables')->name('supplier-payments.show');
+    Route::get('supplier-payments/{supplierPayment}/voucher', [SupplierPaymentController::class, 'voucher'])->middleware('role_or_permission:manage supplier payments|manage payables')->name('supplier-payments.voucher');
 
-    Route::get('reports/receivables', [FinanceReportController::class, 'receivables'])->middleware('permission:view receivables report')->name('reports.receivables');
-    Route::get('reports/payables', [FinanceReportController::class, 'payables'])->middleware('permission:view payables report')->name('reports.payables');
+    Route::get('reports/receivables', [FinanceReportController::class, 'receivables'])->middleware('role_or_permission:view receivables report|manage receivables')->name('reports.receivables');
+    Route::get('reports/payables', [FinanceReportController::class, 'payables'])->middleware('role_or_permission:view payables report|manage payables')->name('reports.payables');
+    Route::get('reports/balance-sheet', [BalanceSheetController::class, 'index'])->middleware('permission:view balance sheet')->name('reports.balance-sheet');
 
-    Route::get('ledgers/customers', [LedgerController::class, 'customer'])->middleware('permission:view customer ledger')->name('ledgers.customers');
-    Route::get('ledgers/customers/{customer}/statement', [LedgerController::class, 'customerStatement'])->middleware('permission:view customer ledger')->name('ledgers.customers.statement');
-    Route::get('ledgers/suppliers', [LedgerController::class, 'supplier'])->middleware('permission:view supplier ledger')->name('ledgers.suppliers');
-    Route::get('ledgers/suppliers/{supplier}/statement', [LedgerController::class, 'supplierStatement'])->middleware('permission:view supplier ledger')->name('ledgers.suppliers.statement');
-    Route::get('ledgers/accounts', [LedgerController::class, 'account'])->middleware('permission:view journal entries')->name('ledgers.accounts');
-    Route::get('ledgers/cash-book', [LedgerController::class, 'cashBook'])->middleware('permission:view journal entries')->name('ledgers.cash-book');
-    Route::get('ledgers/bank-book', [LedgerController::class, 'bankBook'])->middleware('permission:view journal entries')->name('ledgers.bank-book');
+    Route::get('ledgers/customers', [LedgerController::class, 'customer'])->middleware('role_or_permission:view customer ledger|view customer statements')->name('ledgers.customers');
+    Route::get('ledgers/customers/{customer}/statement', [LedgerController::class, 'customerStatement'])->middleware('role_or_permission:view customer ledger|view customer statements')->name('ledgers.customers.statement');
+    Route::get('ledgers/suppliers', [LedgerController::class, 'supplier'])->middleware('role_or_permission:view supplier ledger|view vendor statements')->name('ledgers.suppliers');
+    Route::get('ledgers/suppliers/{supplier}/statement', [LedgerController::class, 'supplierStatement'])->middleware('role_or_permission:view supplier ledger|view vendor statements')->name('ledgers.suppliers.statement');
+    Route::get('ledgers/accounts', [LedgerController::class, 'account'])->middleware('role_or_permission:view journal entries|view general ledger')->name('ledgers.accounts');
+    Route::get('ledgers/cash-book', [LedgerController::class, 'cashBook'])->middleware('role_or_permission:view journal entries|view general ledger')->name('ledgers.cash-book');
+    Route::get('ledgers/bank-book', [LedgerController::class, 'bankBook'])->middleware('role_or_permission:view journal entries|view general ledger')->name('ledgers.bank-book');
 
-    Route::get('accounts', [AccountController::class, 'index'])->middleware('permission:manage chart of accounts')->name('accounts.index');
-    Route::post('accounts', [AccountController::class, 'store'])->middleware('permission:manage chart of accounts')->name('accounts.store');
-    Route::put('accounts/{account}', [AccountController::class, 'update'])->middleware('permission:manage chart of accounts')->name('accounts.update');
+    Route::get('accounts', [AccountController::class, 'index'])->middleware('role_or_permission:manage chart of accounts|manage accounts')->name('accounts.index');
+    Route::get('accounts/tree', [AccountController::class, 'tree'])->middleware('role_or_permission:manage chart of accounts|manage accounts')->name('accounts.tree');
+    Route::post('accounts', [AccountController::class, 'store'])->middleware('role_or_permission:manage chart of accounts|manage accounts')->name('accounts.store');
+    Route::put('accounts/{account}', [AccountController::class, 'update'])->middleware('role_or_permission:manage chart of accounts|manage accounts')->name('accounts.update');
 
     Route::get('journals', [JournalEntryController::class, 'index'])->middleware('permission:view journal entries')->name('journals.index');
     Route::get('journals/{journalEntry}', [JournalEntryController::class, 'show'])->middleware('permission:view journal entries')->name('journals.show');

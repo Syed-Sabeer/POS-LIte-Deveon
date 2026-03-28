@@ -3,6 +3,7 @@
 namespace App\Services\Accounting;
 
 use App\Models\Account;
+use App\Models\AccountLedgerEntry;
 use App\Models\AccountTransaction;
 use App\Models\CustomerPayment;
 use App\Models\JournalEntry;
@@ -13,6 +14,10 @@ use App\Models\SupplierPayment;
 
 class PostingService
 {
+    public function __construct(private readonly LedgerService $ledgerService)
+    {
+    }
+
     public function postSale(PosOrder $order, ?int $cashAccountId, ?int $createdBy): void
     {
         if (JournalEntry::where('voucher_type', 'sale')->where('voucher_id', $order->id)->exists()) {
@@ -255,9 +260,12 @@ class PostingService
         $journal = JournalEntry::create([
             'entry_date' => $date,
             'reference_no' => $referenceNo,
+            'source_type' => $voucherType,
+            'source_id' => $voucherId,
             'voucher_type' => $voucherType,
             'voucher_id' => $voucherId,
             'description' => $description,
+            'status' => 'posted',
             'created_by' => $createdBy,
         ]);
 
@@ -274,6 +282,18 @@ class PostingService
                 (float) $line['debit'],
                 (float) $line['credit'],
                 $createdBy
+            );
+
+            $this->ledgerService->postAccountLedger(
+                (int) $line['account_id'],
+                $date,
+                $voucherType,
+                $voucherId,
+                $journal->id,
+                $referenceNo,
+                (string) ($line['description'] ?? $description),
+                (float) $line['debit'],
+                (float) $line['credit']
             );
         }
     }
@@ -292,6 +312,9 @@ class PostingService
         $previousBalance = (float) AccountTransaction::where('account_id', $accountId)->orderByDesc('id')->value('balance');
 
         $accountType = (string) Account::whereKey($accountId)->value('type');
+        if ($accountType === '' || $accountType === null) {
+            $accountType = (string) Account::whereKey($accountId)->value('account_type');
+        }
         $delta = in_array($accountType, ['asset', 'expense'], true)
             ? ($debit - $credit)
             : ($credit - $debit);
@@ -326,7 +349,7 @@ class PostingService
             ->where('party_type', $partyType)
             ->where('party_id', $partyId)
             ->orderByDesc('id')
-            ->value('balance');
+            ->value('running_balance');
 
         $balance = $previousBalance + ($debit - $credit);
 
@@ -334,12 +357,15 @@ class PostingService
             'party_type' => $partyType,
             'party_id' => $partyId,
             'entry_date' => $entryDate,
+            'source_type' => $voucherType,
+            'source_id' => $voucherId,
             'voucher_type' => $voucherType,
             'voucher_id' => $voucherId,
             'reference_no' => $referenceNo,
             'description' => $description,
             'debit' => $debit,
             'credit' => $credit,
+            'running_balance' => $balance,
             'balance' => $balance,
             'created_by' => $createdBy,
         ]);

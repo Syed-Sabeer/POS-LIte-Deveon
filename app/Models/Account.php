@@ -22,9 +22,13 @@ class Account extends Model
         'name',
         'code',
         'type',
+        'account_type',
+        'account_subtype',
+        'normal_balance',
         'parent_id',
         'is_system',
         'is_active',
+        'notes',
     ];
 
     protected $casts = [
@@ -50,5 +54,10 @@ class Account extends Model
     public function accountTransactions()
     {
         return $this->hasMany(AccountTransaction::class);
+    }
+
+    public function accountLedgerEntries()
+    {
+        return $this->hasMany(AccountLedgerEntry::class);
     }
 }

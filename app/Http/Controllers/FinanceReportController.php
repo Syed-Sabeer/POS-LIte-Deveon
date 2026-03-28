@@ -6,9 +6,17 @@ use App\Models\Customer;
 use App\Models\PosOrder;
 use App\Models\PurchaseInvoice;
 use App\Models\Supplier;
+use App\Services\Accounting\PayableService;
+use App\Services\Accounting\ReceivableService;
 
 class FinanceReportController extends Controller
 {
+    public function __construct(
+        private readonly ReceivableService $receivableService,
+        private readonly PayableService $payableService
+    ) {
+    }
+
     public function receivables()
     {
         $orders = PosOrder::with('customer')
@@ -21,7 +29,7 @@ class FinanceReportController extends Controller
             ->withQueryString();
 
         $customers = Customer::orderBy('full_name')->get();
-        $totalDue = PosOrder::where('due_amount', '>', 0)->sum('due_amount');
+    $totalDue = $this->receivableService->totalOutstanding();
 
         return view('finance-reports.receivables', compact('orders', 'customers', 'totalDue'));
     }
@@ -38,7 +46,7 @@ class FinanceReportController extends Controller
             ->withQueryString();
 
         $suppliers = Supplier::orderBy('full_name')->get();
-        $totalDue = PurchaseInvoice::where('due_amount', '>', 0)->sum('due_amount');
+    $totalDue = $this->payableService->totalOutstanding();
 
         return view('finance-reports.payables', compact('invoices', 'suppliers', 'totalDue'));
     }

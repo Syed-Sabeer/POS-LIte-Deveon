@@ -12,9 +12,12 @@ class JournalEntry extends Model
     protected $fillable = [
         'entry_date',
         'reference_no',
+        'source_type',
+        'source_id',
         'voucher_type',
         'voucher_id',
         'description',
+        'status',
         'created_by',
     ];
 

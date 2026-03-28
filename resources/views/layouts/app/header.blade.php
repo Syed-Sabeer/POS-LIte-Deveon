@@ -5,13 +5,13 @@
 				<!-- Logo -->
 				<div class="header-left active">
 					<a href="index.html" class="logo logo-normal">
-						<img src="{{ asset('AdminAssets/img/logo.svg')}}" alt="Img">
+						<img src="{{ asset('AdminAssets/img/ddb.png')}}" alt="Img">
 					</a>
 					<a href="index.html" class="logo logo-white">
-						<img src="{{ asset('AdminAssets/img/logo-white.svg')}}" alt="Img">
+						<img src="{{ asset('AdminAssets/img/ddb.png')}}" alt="Img">
 					</a>
 					<a href="index.html" class="logo-small">
-						<img src="{{ asset('AdminAssets/img/logo-small.png')}}" alt="Img">
+						<img src="{{ asset('AdminAssets/img/ddb.png')}}" alt="Img">
 					</a>
 				</div>
 				<!-- /Logo -->

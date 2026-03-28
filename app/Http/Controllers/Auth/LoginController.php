@@ -22,16 +22,16 @@ class LoginController extends Controller
 
             if ($currentUser->hasRole('admin')) {
                 Log::info('Redirecting to admin dashboard', ['user_id' => $user->id]);
-                return redirect()->route('admin.dashboard')->with('success', "Login successfully!");
+                return redirect()->route('home')->with('success', "Login successfully!");
             } else if ($currentUser->hasRole('instructor')) {
                 Log::info('Redirecting to instructor dashboard', ['user_id' => $user->id]);
-                return redirect()->route('instructor.dashboard')->with('success', "Login successfully!");
+                return redirect()->route('home')->with('success', "Login successfully!");
             } else if ($currentUser->hasRole('student')) {
                 Log::info('Redirecting to student (admin) dashboard', ['user_id' => $user->id]);
-                return redirect()->route('admin.dashboard')->with('success', "Login successfully!");
+                return redirect()->route('home')->with('success', "Login successfully!");
             } else {
                 Log::info('Redirecting to frontend home', ['user_id' => $user->id]);
-                return redirect()->route('frontend.home')->with('success', "Login successfully!");
+                return redirect()->route('home')->with('success', "Login successfully!");
             }
 
         } else {
@@ -53,7 +53,7 @@ class LoginController extends Controller
         $validate = Validator::make($request->all(), $rules);
         if ($validate->fails()) {
             Log::warning('Login validation failed', ['errors' => $validate->errors()]);
-            
+
             // Check if it's an API request
             if ($request->expectsJson()) {
                 return response()->json([
@@ -62,7 +62,7 @@ class LoginController extends Controller
                     'errors' => $validate->errors()
                 ], 422);
             }
-            
+
             return Redirect::back()
                 ->withErrors($validate)
                 ->withInput($request->all())
@@ -116,18 +116,18 @@ class LoginController extends Controller
 
                         if ($userfind->hasRole('admin')) {
                             Log::info('Redirecting to admin dashboard', ['user_id' => $userfind->id]);
-                            return redirect()->route('admin.dashboard')->with('success', "Login successfully!");
+                            return redirect()->route('home')->with('success', "Login successfully!");
                         } else if ($userfind->hasRole('customer')) {
                             Log::info('Redirecting to customer home', ['user_id' => $userfind->id]);
                             return redirect()->route('home')->with('success', "Login successfully!");
                         } else {
                             Log::info('Redirecting to default home', ['user_id' => $userfind->id]);
-                            return redirect()->route('frontend.home')->with('success', "Login successfully!");
+                            return redirect()->route('home')->with('success', "Login successfully!");
                         }
 
                     } else {
                         Log::error('Auth::attempt failed despite password match', ['user_id' => $userfind->id]);
-                        
+
                         // Check if it's an API request
                         if ($request->expectsJson()) {
                             return response()->json([
@@ -135,12 +135,12 @@ class LoginController extends Controller
                                 'message' => 'Authentication Error'
                             ], 401);
                         }
-                        
+
                         return redirect()->back()->withInput($request->all())->with('error', 'Authentication Error');
                     }
                 } else {
                     Log::warning('Password mismatch', ['user_id' => $userfind->id]);
-                    
+
                     // Check if it's an API request
                     if ($request->expectsJson()) {
                         return response()->json([
@@ -148,12 +148,12 @@ class LoginController extends Controller
                             'message' => 'Password is mismatch'
                         ], 401);
                     }
-                    
+
                     return redirect()->back()->withInput($request->all())->with('error', 'Password is mismatch');
                 }
             } else {
                 Log::warning('No user found with provided credentials', ['input' => $input]);
-                
+
                 // Check if it's an API request
                 if ($request->expectsJson()) {
                     return response()->json([
@@ -161,7 +161,7 @@ class LoginController extends Controller
                         'message' => 'Invalid credentials'
                     ], 401);
                 }
-                
+
                 return redirect()->back()->withInput($request->all())->with('error', "Invalid credentials");
             }
         } catch (\Throwable $th) {
@@ -170,7 +170,7 @@ class LoginController extends Controller
                 'line' => $th->getLine(),
                 'file' => $th->getFile(),
             ]);
-            
+
             // Check if it's an API request
             if ($request->expectsJson()) {
                 return response()->json([
@@ -179,7 +179,7 @@ class LoginController extends Controller
                     'error' => $th->getMessage()
                 ], 500);
             }
-            
+
             return redirect()->back()->withInput($request->all())->with('error', "Something went wrong! Please try again later");
         }
     }
