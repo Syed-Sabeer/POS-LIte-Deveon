@@ -97,4 +97,21 @@ class CustomerPaymentController extends Controller
 
         return view('customer-payments.receipt', ['payment' => $customerPayment]);
     }
+
+    public function payable()
+    {
+        $customers = Customer::orderBy('full_name')
+            ->with(['posOrders' => fn ($q) => $q->where('status', 'completed')->where('due_amount', '>', 0)])
+            ->get()
+            ->filter(fn ($c) => $c->getPendingAmount() > 0);
+
+        return view('customer-payable.index', compact('customers'));
+    }
+
+    public function payableCreate(Customer $customer)
+    {
+        $customer->load(['posOrders' => fn ($q) => $q->where('status', 'completed')->where('due_amount', '>', 0)->latest()]);
+
+        return view('customer-payable.create', compact('customer'));
+    }
 }

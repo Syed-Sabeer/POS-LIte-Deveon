@@ -81,7 +81,7 @@ class CustomerController extends Controller
             'is_active' => $request->boolean('is_active', false),
         ]);
 
-        return back()->with('success', 'Customer updated successfully.');
+        return redirect()->route('customers.index')->with('success', 'Customer updated successfully.');
     }
 
     public function destroy(Customer $customer)

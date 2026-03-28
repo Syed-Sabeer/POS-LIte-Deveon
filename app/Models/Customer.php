@@ -39,4 +39,13 @@ class Customer extends Model
     {
         return $this->hasMany(PartyLedger::class, 'party_id')->where('party_type', PartyLedger::TYPE_CUSTOMER);
     }
+
+    public function getPendingAmount(): float
+    {
+        $totalDue = $this->posOrders()
+            ->where('status', 'completed')
+            ->sum('due_amount');
+
+        return max(0, $totalDue);
+    }
 }

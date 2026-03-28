@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Carbon;
 
 class PosController extends Controller
 {
@@ -65,6 +66,7 @@ class PosController extends Controller
                     'product' => $product,
                     'quantity' => (int) $item['quantity'],
                     'unit_price' => (float) $product->selling_price,
+                    'cost_price' => (float) $product->cost_price,
                     'discount_amount' => $discount,
                     'line_total' => $lineTotal,
                 ];
@@ -139,6 +141,7 @@ class PosController extends Controller
                     'product_id' => $line['product']->id,
                     'product_name' => $line['product']->name,
                     'unit_price' => $line['unit_price'],
+                    'cost_price' => $line['cost_price'],
                     'quantity' => $line['quantity'],
                     'discount_amount' => $line['discount_amount'],
                     'line_total' => $line['line_total'],
@@ -181,25 +184,9 @@ class PosController extends Controller
     {
         $reportDate = request('date', now()->toDateString());
 
-        $dailyOrders = PosOrder::with(['customer', 'items'])
-            ->whereDate('created_at', $reportDate)
-            ->latest()
-            ->get();
+        $reportData = $this->buildSalesReportData($reportDate);
 
-        $dailySales = $dailyOrders->sum('total');
-        $weeklySales = PosOrder::whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])->sum('total');
-        $monthlySales = PosOrder::whereYear('created_at', now()->year)
-            ->whereMonth('created_at', now()->month)
-            ->sum('total');
-
-        $summary = [
-            'total_orders' => $dailyOrders->count(),
-            'total_items_sold' => $dailyOrders->sum(fn ($order) => $order->items->sum('quantity')),
-            'total_discount' => $dailyOrders->sum(fn ($order) => $order->items->sum('discount_amount')),
-            'total_earning' => $dailySales,
-        ];
-
-        return view('reports.sales', compact('dailySales', 'weeklySales', 'monthlySales', 'dailyOrders', 'summary', 'reportDate'));
+        return view('reports.sales', $reportData + ['reportDate' => $reportDate]);
     }
 
     public function exportDailySalesExcel(Request $request)
@@ -214,20 +201,152 @@ class PosController extends Controller
     {
         $reportDate = $request->input('date', now()->toDateString());
 
-        $dailyOrders = PosOrder::with(['customer', 'items'])
-            ->whereDate('created_at', $reportDate)
+        $reportData = $this->buildSalesReportData($reportDate);
+
+        $pdf = Pdf::loadView('reports.sales-pdf', $reportData + ['reportDate' => $reportDate]);
+
+        return $pdf->download('daily-sales-' . $reportDate . '.pdf');
+    }
+
+    private function buildSalesReportData(string $reportDate): array
+    {
+        $dailyOrders = PosOrder::with(['customer', 'items.product'])
+            ->whereDate('invoice_date', $reportDate)
             ->latest()
             ->get();
 
-        $summary = [
-            'total_orders' => $dailyOrders->count(),
-            'total_items_sold' => $dailyOrders->sum(fn ($order) => $order->items->sum('quantity')),
-            'total_discount' => $dailyOrders->sum(fn ($order) => $order->items->sum('discount_amount')),
-            'total_earning' => $dailyOrders->sum('total'),
+        $weeklySales = PosOrder::whereBetween('invoice_date', [now()->startOfWeek()->toDateString(), now()->endOfWeek()->toDateString()])->sum('total');
+        $monthlySales = PosOrder::whereYear('invoice_date', now()->year)
+            ->whereMonth('invoice_date', now()->month)
+            ->sum('total');
+
+        $periodProfiles = [
+            'daily' => $this->buildPeriodProfile(Carbon::parse($reportDate)->startOfDay(), Carbon::parse($reportDate)->endOfDay()),
+            'weekly' => $this->buildPeriodProfile(now()->startOfWeek(), now()->endOfWeek()),
+            'monthly' => $this->buildPeriodProfile(now()->startOfMonth(), now()->endOfMonth()),
         ];
 
-        $pdf = Pdf::loadView('reports.sales-pdf', compact('dailyOrders', 'summary', 'reportDate'));
+        $itemWise = [];
+        $totals = [
+            'sales_amount' => 0.0,
+            'received_amount' => 0.0,
+            'due_amount' => 0.0,
+            'cost_amount' => 0.0,
+            'profit_amount' => 0.0,
+            'loss_amount' => 0.0,
+            'discount_amount' => 0.0,
+            'quantity_sold' => 0,
+        ];
 
-        return $pdf->download('daily-sales-' . $reportDate . '.pdf');
+        foreach ($dailyOrders as $order) {
+            $orderTotal = (float) $order->total;
+            $orderReceived = min($orderTotal, max(0, (float) $order->paid_amount));
+            $orderDue = max(0, (float) $order->due_amount);
+
+            foreach ($order->items as $item) {
+                $lineSales = (float) $item->line_total;
+                $lineQty = (int) $item->quantity;
+                $lineDiscount = (float) $item->discount_amount;
+                $unitCost = (float) ($item->cost_price ?? $item->product?->cost_price ?? 0);
+                $lineCost = $unitCost * $lineQty;
+                $lineProfit = $lineSales - $lineCost;
+
+                $lineDue = $orderTotal > 0 ? ($lineSales / $orderTotal) * $orderDue : 0;
+                $lineReceived = $orderTotal > 0 ? ($lineSales / $orderTotal) * $orderReceived : 0;
+
+                $itemKey = ($item->product_id ?: 'name') . '|' . strtolower($item->product_name);
+                if (!isset($itemWise[$itemKey])) {
+                    $itemWise[$itemKey] = [
+                        'product_name' => $item->product_name,
+                        'quantity_sold' => 0,
+                        'sales_amount' => 0.0,
+                        'earning_amount' => 0.0,
+                        'due_amount' => 0.0,
+                        'cost_amount' => 0.0,
+                        'profit_or_loss' => 0.0,
+                        'discount_amount' => 0.0,
+                    ];
+                }
+
+                $itemWise[$itemKey]['quantity_sold'] += $lineQty;
+                $itemWise[$itemKey]['sales_amount'] += $lineSales;
+                $itemWise[$itemKey]['earning_amount'] += $lineReceived;
+                $itemWise[$itemKey]['due_amount'] += $lineDue;
+                $itemWise[$itemKey]['cost_amount'] += $lineCost;
+                $itemWise[$itemKey]['profit_or_loss'] += $lineProfit;
+                $itemWise[$itemKey]['discount_amount'] += $lineDiscount;
+
+                $totals['quantity_sold'] += $lineQty;
+                $totals['sales_amount'] += $lineSales;
+                $totals['received_amount'] += $lineReceived;
+                $totals['due_amount'] += $lineDue;
+                $totals['cost_amount'] += $lineCost;
+                $totals['discount_amount'] += $lineDiscount;
+
+                if ($lineProfit >= 0) {
+                    $totals['profit_amount'] += $lineProfit;
+                } else {
+                    $totals['loss_amount'] += abs($lineProfit);
+                }
+            }
+        }
+
+        $itemWiseSales = collect(array_values($itemWise))->sortByDesc('sales_amount')->values();
+
+        $summary = [
+            'total_orders' => $dailyOrders->count(),
+            'total_items_sold' => $totals['quantity_sold'],
+            'total_discount' => $totals['discount_amount'],
+            'total_sales_amount' => $totals['sales_amount'],
+            'total_earning' => $totals['received_amount'],
+            'total_due' => $totals['due_amount'],
+            'total_cost' => $totals['cost_amount'],
+            'total_profit' => $totals['profit_amount'],
+            'total_loss' => $totals['loss_amount'],
+            'net_profit_loss' => $totals['sales_amount'] - $totals['cost_amount'],
+        ];
+
+        return [
+            'dailySales' => $summary['total_sales_amount'],
+            'weeklySales' => $weeklySales,
+            'monthlySales' => $monthlySales,
+            'dailyOrders' => $dailyOrders,
+            'itemWiseSales' => $itemWiseSales,
+            'summary' => $summary,
+            'periodProfiles' => $periodProfiles,
+        ];
+    }
+
+    private function buildPeriodProfile(Carbon $start, Carbon $end): array
+    {
+        $orders = PosOrder::with('items')
+            ->whereBetween('invoice_date', [$start->toDateString(), $end->toDateString()])
+            ->get();
+
+        $sales = (float) $orders->sum('total');
+        $received = (float) $orders->sum('paid_amount');
+        $due = (float) $orders->sum('due_amount');
+        $discount = (float) $orders->sum('discount_amount');
+        $itemsSold = (int) $orders->sum(fn ($order) => (int) $order->items->sum('quantity'));
+        $cost = (float) $orders->sum(function ($order) {
+            return $order->items->sum(function ($item) {
+                return (float) ($item->cost_price ?? 0) * (int) $item->quantity;
+            });
+        });
+
+        $net = $sales - $cost;
+
+        return [
+            'orders' => $orders->count(),
+            'items_sold' => $itemsSold,
+            'sales_amount' => $sales,
+            'received_amount' => $received,
+            'due_amount' => $due,
+            'discount_amount' => $discount,
+            'cost_amount' => $cost,
+            'profit_amount' => $net > 0 ? $net : 0.0,
+            'loss_amount' => $net < 0 ? abs($net) : 0.0,
+            'net_profit_loss' => $net,
+        ];
     }
 }

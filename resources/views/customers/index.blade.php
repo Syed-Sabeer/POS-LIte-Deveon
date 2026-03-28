@@ -83,8 +83,7 @@
                         <th>Company</th>
                         <th>Phone</th>
                         <th>Email</th>
-                        <th>Address</th>
-                        <th>Opening</th>
+                        <th>Pending</th>
                         <th>Status</th>
                         <th>Created</th>
                         <th class="text-center">Actions</th>
@@ -97,8 +96,7 @@
                             <td>{{ $customer->company_name ?: '-' }}</td>
                             <td>{{ $customer->phone ?: '-' }}</td>
                             <td>{{ $customer->email ?: '-' }}</td>
-                            <td>{{ $customer->address ?: '-' }}</td>
-                            <td>{{ strtoupper($customer->balance_type) }} PKR {{ number_format($customer->opening_balance ?? 0, 2) }}</td>
+                            <td><span class="badge {{ $customer->getPendingAmount() > 0 ? 'bg-warning' : 'bg-success' }}">PKR {{ number_format($customer->getPendingAmount(), 2) }}</span></td>
                             <td>{{ $customer->is_active ? 'Active' : 'Inactive' }}</td>
                             <td>{{ $customer->created_at->format('Y-m-d') }}</td>
                             <td class="text-center">
@@ -114,7 +112,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="text-center">No customers found.</td>
+                            <td colspan="8" class="text-center">No customers found.</td>
                         </tr>
                     @endforelse
                 </tbody>

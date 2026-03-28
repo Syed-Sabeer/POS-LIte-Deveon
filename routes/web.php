@@ -81,6 +81,9 @@ Route::middleware('auth')->group(function () {
     Route::put('customers/{customer}', [CustomerController::class, 'update'])->middleware('permission:manage customers')->name('customers.update');
     Route::delete('customers/{customer}', [CustomerController::class, 'destroy'])->middleware('permission:manage customers')->name('customers.destroy');
 
+    Route::get('customer-payable', [CustomerPaymentController::class, 'payable'])->middleware('permission:manage customer payments')->name('customer-payable.index');
+    Route::get('customer-payable/{customer}', [CustomerPaymentController::class, 'payableCreate'])->middleware('permission:manage customer payments')->name('customer-payable.create');
+
     Route::get('stock', [StockController::class, 'index'])->middleware('permission:manage stock')->name('stock.index');
     Route::post('stock/adjust', [StockController::class, 'adjust'])->middleware('permission:manage stock')->name('stock.adjust');
 

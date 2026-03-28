@@ -46,7 +46,8 @@
                             @can('pos checkout')<li><a href="{{ route('pos.index') }}"><i class="ti ti-device-laptop fs-16 me-2"></i><span>POS Checkout</span></a></li>@endcan
                             @can('pos orders')<li><a href="{{ route('pos.orders') }}"><i class="ti ti-receipt fs-16 me-2"></i><span>POS Orders</span></a></li>@endcan
                             @can('manage customers')<li><a href="{{ route('customers.index') }}"><i class="ti ti-users fs-16 me-2"></i><span>Customers</span></a></li>@endcan
-                            @can('manage customer payments')<li><a href="{{ route('customer-payments.index') }}"><i class="ti ti-cash fs-16 me-2"></i><span>Customer Payments</span></a></li>@endcan
+                            @can('manage customer payments')<li><a href="{{ route('customer-payable.index') }}"><i class="ti ti-wallet fs-16 me-2"></i><span>Customer Payable</span></a></li>@endcan
+                            @can('manage customer payments')<li><a href="{{ route('customer-payments.index') }}"><i class="ti ti-cash fs-16 me-2"></i><span>Payments Received</span></a></li>@endcan
                             {{-- @can('manage supplier payments')<li><a href="{{ route('supplier-payments.index') }}"><i class="ti ti-cash-banknote fs-16 me-2"></i><span>Supplier Payments</span></a></li>@endcan --}}
                         </ul>
                     </li>
