@@ -573,18 +573,18 @@
 
         const item = cart.get(lineKey);
 
-        if (fieldKey === 'qty') {
+        if (fieldType === 'qty') {
             let quantity = parseNumericValue(input.value, 1, false);
             quantity = Math.max(1, Math.floor(quantity));
             quantity = Math.min(quantity, item.stock);
             item.quantity = quantity;
             input.value = String(quantity);
-        } else if (fieldKey === 'price') {
+        } else if (fieldType === 'price') {
             let price = parseNumericValue(input.value, item.price, true);
             price = Math.max(0, price);
             item.price = price;
             input.value = price.toFixed(2);
-        } else if (fieldKey === 'discount') {
+        } else if (fieldType === 'discount') {
             let discount = parseNumericValue(input.value, 0, true);
             const maxDiscount = Math.max(0, item.price * item.quantity);
             discount = Math.min(Math.max(0, discount), maxDiscount);
@@ -676,18 +676,19 @@
             paid_amount: Number(paidAmountEl.value || 0),
             items,
         };
-            if (fieldType === 'qty') {
+    }
 
     function validateOfflinePayload(payload) {
         if (!payload.items || payload.items.length === 0) {
             return 'Add at least one item before checkout.';
         }
-            } else if (fieldType === 'price') {
+
+        if (!payload.customer_id && payload.payment_method === 'pay_later') {
             return 'Walk in customer cannot use Pay Later.';
         }
 
         const subtotal = payload.items.reduce((sum, line) => {
-            } else if (fieldType === 'discount') {
+            const gross = Number(line.unit_price || 0) * Number(line.quantity || 0);
             const discount = Math.min(Number(line.discount || 0), gross);
             return sum + (gross - discount);
         }, 0);
