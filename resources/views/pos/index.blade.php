@@ -427,24 +427,7 @@
     const csrfToken = '{{ csrf_token() }}';
     const syncEndpoint = '{{ route('pos.checkout.sync') }}';
     const isRefundMode = {{ $refundOrder ? 'true' : 'false' }};
-    const refundOrderData = @json($refundOrder ? [
-        'id' => $refundOrder->id,
-        'order_number' => $refundOrder->order_number,
-        'customer_id' => $refundOrder->customer_id,
-        'customer_name' => $refundOrder->customer_name,
-        'payment_method' => $refundOrder->payment_method,
-        'invoice_date' => optional($refundOrder->invoice_date)->toDateString(),
-        'paid_amount' => (float) ($refundOrder->received_amount ?? $refundOrder->paid_amount),
-        'items' => $refundOrder->items->map(function ($item) {
-            return [
-                'product_id' => $item->product_id,
-                'product_name' => $item->product_name,
-                'unit_price' => (float) $item->unit_price,
-                'quantity' => (int) $item->quantity,
-                'discount_amount' => (float) $item->discount_amount,
-            ];
-        })->values(),
-    ] : null);
+    const refundOrderData = @json($refundOrderData);
     const cart = new Map();
     let activeTouchFieldKey = null;
     const checkoutForm = document.getElementById('checkoutForm');

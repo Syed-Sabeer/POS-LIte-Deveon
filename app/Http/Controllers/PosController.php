@@ -31,15 +31,35 @@ class PosController extends Controller
         $customers = Customer::orderBy('full_name')->get();
 
         $refundOrder = null;
+        $refundOrderData = null;
         $refundAdditionalDiscount = 0.0;
         $refundOrderId = request()->integer('refund_order');
         if ($refundOrderId) {
             $refundOrder = PosOrder::with(['items', 'customer'])->findOrFail($refundOrderId);
             $lineDiscountTotal = (float) $refundOrder->items->sum('discount_amount');
             $refundAdditionalDiscount = max(0, (float) $refundOrder->discount_amount - $lineDiscountTotal);
+
+            $refundOrderData = [
+                'id' => $refundOrder->id,
+                'order_number' => $refundOrder->order_number,
+                'customer_id' => $refundOrder->customer_id,
+                'customer_name' => $refundOrder->customer_name,
+                'payment_method' => $refundOrder->payment_method,
+                'invoice_date' => optional($refundOrder->invoice_date)->toDateString(),
+                'paid_amount' => (float) ($refundOrder->received_amount ?? $refundOrder->paid_amount),
+                'items' => $refundOrder->items->map(function ($item) {
+                    return [
+                        'product_id' => $item->product_id,
+                        'product_name' => $item->product_name,
+                        'unit_price' => (float) $item->unit_price,
+                        'quantity' => (int) $item->quantity,
+                        'discount_amount' => (float) $item->discount_amount,
+                    ];
+                })->values()->all(),
+            ];
         }
 
-        return view('pos.index', compact('products', 'customers', 'refundOrder', 'refundAdditionalDiscount'));
+        return view('pos.index', compact('products', 'customers', 'refundOrder', 'refundOrderData', 'refundAdditionalDiscount'));
     }
 
     public function checkout(PosCheckoutRequest $request)
