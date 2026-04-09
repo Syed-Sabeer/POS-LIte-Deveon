@@ -30,7 +30,16 @@ class PosController extends Controller
 
         $customers = Customer::orderBy('full_name')->get();
 
-        return view('pos.index', compact('products', 'customers'));
+        $refundOrder = null;
+        $refundAdditionalDiscount = 0.0;
+        $refundOrderId = request()->integer('refund_order');
+        if ($refundOrderId) {
+            $refundOrder = PosOrder::with(['items', 'customer'])->findOrFail($refundOrderId);
+            $lineDiscountTotal = (float) $refundOrder->items->sum('discount_amount');
+            $refundAdditionalDiscount = max(0, (float) $refundOrder->discount_amount - $lineDiscountTotal);
+        }
+
+        return view('pos.index', compact('products', 'customers', 'refundOrder', 'refundAdditionalDiscount'));
     }
 
     public function checkout(PosCheckoutRequest $request)

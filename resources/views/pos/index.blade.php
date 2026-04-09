@@ -232,8 +232,10 @@
             <div class="content-wrap">
                 <div class="d-flex align-items-center justify-content-between flex-wrap mb-3">
                     <div class="mb-2">
-                        <h5 class="mb-1">Point Of Sale</h5>
-                        <p class="mb-0">Live inventory, per-item discount, and linked customers</p>
+                        <h5 class="mb-1">{{ $refundOrder ? 'Point Of Sale - Refund Edit' : 'Point Of Sale' }}</h5>
+                        <p class="mb-0">
+                            {{ $refundOrder ? 'Editing sale #' . $refundOrder->order_number . ' in same POS screen' : 'Live inventory, per-item discount, and linked customers' }}
+                        </p>
                     </div>
                     {{-- <div class="mb-2 product-search">
                         <input id="productSearch" type="text" class="form-control" placeholder="Search product by name">
@@ -280,12 +282,15 @@
             <div class="card">
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between mb-3">
-                        <h3 class="mb-0">Order List</h3>
+                        <h3 class="mb-0">{{ $refundOrder ? 'Refund Sale Edit' : 'Order List' }}</h3>
                     </div>
                     <div class="d-flex align-items-center justify-content-between mb-3 gap-2 flex-wrap">
                         <span class="badge badge-dark fs-10 fw-medium badge-xs" id="itemsCount">Items: 0</span>
                         <span class="badge bg-success" id="networkStatus">Online</span>
                         <span class="badge bg-warning text-dark" id="pendingSyncBadge">Pending Sync: 0</span>
+                        @if($refundOrder)
+                            <a href="{{ route('pos.index') }}" class="btn btn-sm btn-outline-secondary">Exit Refund Mode</a>
+                        @endif
                         <button type="button" class="btn btn-sm btn-outline-danger" id="clearFormBtn">Clear Form</button>
                         <button type="button" class="btn btn-sm btn-outline-primary" id="syncNowBtn">Sync Now</button>
                     </div>
@@ -295,8 +300,11 @@
                         <div class="alert alert-danger"><ul class="mb-0 ps-3">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
                     @endif
 
-                    <form method="POST" action="{{ route('pos.checkout') }}" id="checkoutForm">
+                    <form method="POST" action="{{ $refundOrder ? route('pos.orders.update', $refundOrder) : route('pos.checkout') }}" id="checkoutForm">
                         @csrf
+                        @if($refundOrder)
+                            @method('PUT')
+                        @endif
                         <div class="mb-3">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <label class="form-label mb-0">Customer</label>
@@ -309,11 +317,11 @@
                                     <option
                                         value="{{ $customer->id }}"
                                         data-search="{{ strtolower(trim($customer->full_name . ' ' . ($customer->phone ?? '') . ' ' . ($customer->company_name ?? ''))) }}"
-                                        {{ old('customer_id') == $customer->id ? 'selected' : '' }}
+                                        {{ old('customer_id', $refundOrder?->customer_id) == $customer->id ? 'selected' : '' }}
                                     >{{ $customer->full_name }}{{ $customer->phone ? ' - ' . $customer->phone : '' }}</option>
                                 @endforeach
                             </select>
-                            <input type="hidden" name="customer_name" value="Walk in Customer">
+                            <input type="hidden" name="customer_name" value="{{ old('customer_name', $refundOrder?->customer_name ?: 'Walk in Customer') }}">
                         </div>
 
                         <div class="table-responsive">
@@ -334,26 +342,27 @@
                         <table class="table table-borderless mb-3">
                             <tr><td>Sub Total</td><td class="text-end" id="subTotal">PKR 0</td></tr>
                             <tr><td>Line Discount</td><td class="text-end" id="discountTotal">PKR 0</td></tr>
-                            <tr><td>Extra Discount</td><td class="text-end"><input type="text" inputmode="numeric" autocomplete="off" name="additional_discount" id="additionalDiscount" class="form-control form-control-sm text-center" value="0" data-touch-input data-touch-field="additionalDiscount" data-touch-label="Extra Discount" data-allow-decimal="false"></td></tr>
+                            <tr><td>Extra Discount</td><td class="text-end"><input type="text" inputmode="numeric" autocomplete="off" name="additional_discount" id="additionalDiscount" class="form-control form-control-sm text-center" value="{{ old('additional_discount', $refundOrder ? (int) round($refundAdditionalDiscount) : 0) }}" data-touch-input data-touch-field="additionalDiscount" data-touch-label="Extra Discount" data-allow-decimal="false"></td></tr>
                             <tr><td class="fw-bold border-top">Total Payable</td><td class="text-end fw-bold border-top" id="totalPayable">PKR 0</td></tr>
-                            <tr><td>Received Amount</td><td class="text-end"><input type="text" inputmode="numeric" autocomplete="off" name="paid_amount" id="paidAmount" class="form-control form-control-sm text-center" value="0" data-touch-input data-touch-field="paidAmount" data-touch-label="Received Amount" data-allow-decimal="false"></td></tr>
+                            <tr><td>Received Amount</td><td class="text-end"><input type="text" inputmode="numeric" autocomplete="off" name="paid_amount" id="paidAmount" class="form-control form-control-sm text-center" value="{{ old('paid_amount', $refundOrder ? (int) round($refundOrder->received_amount ?? $refundOrder->paid_amount) : 0) }}" data-touch-input data-touch-field="paidAmount" data-touch-label="Received Amount" data-allow-decimal="false"></td></tr>
                             <tr><td class="fw-bold">Due Amount</td><td class="text-center fw-bold" id="dueAmount">PKR 0</td></tr>
                             <tr><td class="fw-bold">Return Amount</td><td class="text-end fw-bold text-success" id="returnAmount">PKR 0</td></tr>
                         </table>
 
-                        <input type="hidden" name="invoice_date" value="{{ old('invoice_date', now()->toDateString()) }}">
+                        <input type="hidden" name="invoice_date" value="{{ old('invoice_date', $refundOrder?->invoice_date?->toDateString() ?? now()->toDateString()) }}">
 
                         <div class="mb-3">
                             <label class="form-label">Payment Method <span class="text-danger">*</span></label>
                             <select name="payment_method" id="paymentMethod" class="form-control" required>
-                                <option value="cash">Cash</option>
-                                <option value="cheque">Cheque</option>
-                                <option value="pay_later">Pay Later</option>
+                                @php($posPaymentMethod = old('payment_method', $refundOrder?->payment_method ?: 'cash'))
+                                <option value="cash" {{ $posPaymentMethod === 'cash' ? 'selected' : '' }}>Cash</option>
+                                <option value="cheque" {{ $posPaymentMethod === 'cheque' ? 'selected' : '' }}>Cheque</option>
+                                <option value="pay_later" {{ $posPaymentMethod === 'pay_later' ? 'selected' : '' }}>Pay Later</option>
                             </select>
                         </div>
 
                         <div id="hiddenItems"></div>
-                        <button type="submit" class="btn btn-secondary w-100" id="checkoutBtn" disabled>Complete Checkout</button>
+                        <button type="submit" class="btn btn-secondary w-100" id="checkoutBtn" disabled>{{ $refundOrder ? 'Update Sale' : 'Complete Checkout' }}</button>
                     </form>
                 </div>
             </div>
@@ -417,6 +426,25 @@
     const OFFLINE_QUEUE_KEY = 'posOfflineOrdersQueueV1';
     const csrfToken = '{{ csrf_token() }}';
     const syncEndpoint = '{{ route('pos.checkout.sync') }}';
+    const isRefundMode = {{ $refundOrder ? 'true' : 'false' }};
+    const refundOrderData = @json($refundOrder ? [
+        'id' => $refundOrder->id,
+        'order_number' => $refundOrder->order_number,
+        'customer_id' => $refundOrder->customer_id,
+        'customer_name' => $refundOrder->customer_name,
+        'payment_method' => $refundOrder->payment_method,
+        'invoice_date' => optional($refundOrder->invoice_date)->toDateString(),
+        'paid_amount' => (float) ($refundOrder->received_amount ?? $refundOrder->paid_amount),
+        'items' => $refundOrder->items->map(function ($item) {
+            return [
+                'product_id' => $item->product_id,
+                'product_name' => $item->product_name,
+                'unit_price' => (float) $item->unit_price,
+                'quantity' => (int) $item->quantity,
+                'discount_amount' => (float) $item->discount_amount,
+            ];
+        })->values(),
+    ] : null);
     const cart = new Map();
     let activeTouchFieldKey = null;
     const checkoutForm = document.getElementById('checkoutForm');
@@ -1126,6 +1154,11 @@
     }
 
     checkoutForm.addEventListener('submit', async function (event) {
+        if (isRefundMode) {
+            checkoutBtn.disabled = true;
+            return;
+        }
+
         event.preventDefault();
 
         const payload = buildCheckoutPayload();
@@ -1159,6 +1192,43 @@
             checkoutBtn.disabled = cart.size === 0;
         }
     });
+
+    function initializeRefundOrderCart() {
+        if (!isRefundMode || !refundOrderData || !Array.isArray(refundOrderData.items)) {
+            return;
+        }
+
+        const productCardMap = new Map();
+        document.querySelectorAll('.add-to-cart').forEach((card) => {
+            productCardMap.set(String(card.dataset.id), card);
+        });
+
+        cart.clear();
+        refundOrderData.items.forEach((item) => {
+            const key = String(item.product_id);
+            const card = productCardMap.get(key);
+
+            cart.set(key, {
+                id: Number(item.product_id),
+                name: item.product_name,
+                price: Math.round(Number(item.unit_price || 0)),
+                quantity: Math.max(1, Number(item.quantity || 1)),
+                stock: Number(card ? (card.dataset.stock || 0) : 0),
+                unit: card ? (card.dataset.unit || 'pcs') : 'pcs',
+                discount: Math.round(Number(item.discount_amount || 0)),
+            });
+        });
+
+        if (refundOrderData.payment_method && paymentMethodEl) {
+            paymentMethodEl.value = refundOrderData.payment_method;
+        }
+
+        if (refundOrderData.customer_id && customerSelectEl) {
+            customerSelectEl.value = String(refundOrderData.customer_id);
+        }
+
+        renderCart();
+    }
 
     if (clearFormBtn) {
         clearFormBtn.addEventListener('click', function () {
@@ -1235,6 +1305,7 @@
     window.addEventListener('offline', updateNetworkStatus);
 
     setupDraggableKeypad();
+    initializeRefundOrderCart();
     updateNetworkStatus();
     updatePendingBadge();
     if (navigator.onLine) {

@@ -32,9 +32,25 @@ body.fullscreen-sidebar-hidden .header-left {
 (function () {
 	const body = document.body;
 	const fullscreenBtn = document.getElementById('btnFullscreen');
+	const fullscreenLayoutKey = 'appPersistentFullscreenLayout';
 
-	if (!fullscreenBtn || !body) {
+	if (!body) {
 		return;
+	}
+
+	function isPersistentLayoutEnabled() {
+		try {
+			return localStorage.getItem(fullscreenLayoutKey) === '1';
+		} catch (e) {
+			return false;
+		}
+	}
+
+	function setPersistentLayoutEnabled(value) {
+		try {
+			localStorage.setItem(fullscreenLayoutKey, value ? '1' : '0');
+		} catch (e) {
+		}
 	}
 
 	function applyFullscreenLayout(isFullscreen) {
@@ -72,21 +88,46 @@ body.fullscreen-sidebar-hidden .header-left {
 		);
 	}
 
+	function applySavedOrNativeFullscreen() {
+		applyFullscreenLayout(isPersistentLayoutEnabled() || isInFullscreen());
+	}
+
 	['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach((eventName) => {
 		document.addEventListener(eventName, function () {
-			applyFullscreenLayout(isInFullscreen());
+			applySavedOrNativeFullscreen();
 		});
 	});
 
+	window.addEventListener('storage', function (event) {
+		if (event.key === fullscreenLayoutKey) {
+			applySavedOrNativeFullscreen();
+		}
+	});
+
+	if (!fullscreenBtn) {
+		applySavedOrNativeFullscreen();
+		return;
+	}
+
 	fullscreenBtn.addEventListener('click', function (event) {
 		event.preventDefault();
-		togglePageFullscreen();
+		const enablePersistentLayout = !isPersistentLayoutEnabled();
+		setPersistentLayoutEnabled(enablePersistentLayout);
+
+		if (enablePersistentLayout) {
+			if (!isInFullscreen()) {
+				togglePageFullscreen();
+			}
+		} else if (isInFullscreen()) {
+			togglePageFullscreen();
+		}
+
 		setTimeout(function () {
-			applyFullscreenLayout(isInFullscreen());
+			applySavedOrNativeFullscreen();
 		}, 120);
 	});
 
-	applyFullscreenLayout(isInFullscreen());
+	applySavedOrNativeFullscreen();
 })();
 </script>
 

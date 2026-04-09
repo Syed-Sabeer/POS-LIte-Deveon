@@ -52,7 +52,7 @@
                             <td>
                                 <div class="d-flex gap-1 flex-wrap">
                                     <a href="{{ route('pos.orders.show', $order) }}" class="btn btn-sm btn-info">Receipt</a>
-                                    <a href="{{ route('pos.orders.edit', $order) }}" class="btn btn-sm btn-warning">Refund</a>
+                                    <a href="{{ route('pos.index', ['refund_order' => $order->id]) }}" class="btn btn-sm btn-warning">Refund</a>
                                     <form action="{{ route('pos.orders.destroy', $order) }}" method="POST" onsubmit="return confirm('Cancel this sale and delete the record?')">
                                         @csrf
                                         @method('DELETE')
