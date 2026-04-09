@@ -54,8 +54,8 @@ return [
     |
     */
 
-    'url' => env('APP_URL', 'http://localhost/POS'),
-    'asset_url' => env('ASSET_URL', 'http://localhost/POS/public'),
+    'url' => env('APP_URL', 'http://localhost/Deveon/POS'),
+    'asset_url' => env('ASSET_URL', 'http://localhost/Deveon/POS/public'),
 
     /*
     |--------------------------------------------------------------------------

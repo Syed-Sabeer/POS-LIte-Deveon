@@ -8,6 +8,7 @@
 
 .line-discount { width: var(--line-input-width); min-height: 38px; padding-left: 6px; padding-right: 6px; }
 .line-qty { width: var(--line-input-width); min-height: 38px; font-size: 15px; font-weight: 600; text-align: center; padding-left: 6px; padding-right: 6px; }
+.line-price { width: 96px; min-height: 38px; font-size: 14px; font-weight: 600; text-align: right; padding-left: 6px; padding-right: 6px; }
 
 .product-search { max-width: 320px; }
 
@@ -85,9 +86,11 @@
 .order-list-panel .table thead th:nth-child(2),
 .order-list-panel .table tbody td:nth-child(2) { width: 18%; }
 .order-list-panel .table thead th:nth-child(3),
-.order-list-panel .table tbody td:nth-child(3) { width: 16%; }
+.order-list-panel .table tbody td:nth-child(3) { width: 17%; }
 .order-list-panel .table thead th:nth-child(4),
-.order-list-panel .table tbody td:nth-child(4) { width: 22%; }
+.order-list-panel .table tbody td:nth-child(4) { width: 18%; }
+.order-list-panel .table thead th:nth-child(5),
+.order-list-panel .table tbody td:nth-child(5) { width: 18%; }
 
 .order-list-panel .table tbody td:first-child {
     word-break: break-word;
@@ -103,6 +106,113 @@
     .line-discount,
     .line-qty {
         min-height: 36px;
+    }
+
+    .line-price {
+        width: 84px;
+        min-height: 36px;
+    }
+}
+
+.touch-keypad {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 1045;
+    width: min(320px, calc(100vw - 40px));
+    border: 1px solid #dee2e6;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 16px 40px rgba(33, 37, 41, 0.18);
+    backdrop-filter: blur(10px);
+}
+
+.touch-keypad__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px 8px;
+    border-bottom: 1px solid #edf0f2;
+}
+
+.touch-keypad__title {
+    margin: 0;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: #495057;
+}
+
+.touch-keypad__field {
+    margin: 0;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: #212529;
+}
+
+.touch-keypad__display {
+    padding: 10px 14px 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #fd7e14;
+    text-align: right;
+    min-height: 28px;
+}
+
+.touch-keypad__grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    padding: 12px 14px 14px;
+}
+
+.touch-keypad__button {
+    min-height: 48px;
+    border: 1px solid #d9dee3;
+    border-radius: 12px;
+    background: #f8f9fa;
+    color: #212529;
+    font-size: 1rem;
+    font-weight: 700;
+    transition: transform .15s ease, background .15s ease, border-color .15s ease;
+}
+
+.touch-keypad__button:hover,
+.touch-keypad__button:focus {
+    background: #fff3e8;
+    border-color: #fd7e14;
+    box-shadow: none;
+    outline: 0;
+}
+
+.touch-keypad__button:active {
+    transform: translateY(1px);
+}
+
+.touch-keypad__button--accent {
+    background: #fd7e14;
+    border-color: #fd7e14;
+    color: #fff;
+}
+
+.touch-keypad__button--accent:hover,
+.touch-keypad__button--accent:focus {
+    background: #e76f0c;
+    border-color: #e76f0c;
+    color: #fff;
+}
+
+.touch-keypad__button--wide {
+    grid-column: span 2;
+}
+
+@media (max-width: 575.98px) {
+    .touch-keypad {
+        right: 12px;
+        bottom: 12px;
+        width: calc(100vw - 24px);
     }
 }
 </style>
@@ -204,6 +314,7 @@
                                     <tr>
                                         <th class="fw-bold bg-light">Item</th>
                                         <th class="fw-bold bg-light">Qty</th>
+                                        <th class="fw-bold bg-light">Price</th>
                                         <th class="fw-bold bg-light">Disc</th>
                                         <th class="fw-bold bg-light text-end">Total</th>
                                     </tr>
@@ -215,9 +326,9 @@
                         <table class="table table-borderless mb-3">
                             <tr><td>Sub Total</td><td class="text-end" id="subTotal">PKR 0.00</td></tr>
                             <tr><td>Line Discount</td><td class="text-end" id="discountTotal">PKR 0.00</td></tr>
-                            <tr><td>Extra Discount</td><td class="text-end"><input type="number" step="0.01" min="0" name="additional_discount" id="additionalDiscount" class="form-control form-control-sm text-end" value="0"></td></tr>
+                            <tr><td>Extra Discount</td><td class="text-end"><input type="text" inputmode="decimal" autocomplete="off" name="additional_discount" id="additionalDiscount" class="form-control form-control-sm text-end" value="0" data-touch-input data-touch-field="additionalDiscount" data-touch-label="Extra Discount"></td></tr>
                             <tr><td class="fw-bold border-top">Total Payable</td><td class="text-end fw-bold border-top" id="totalPayable">PKR 0.00</td></tr>
-                            <tr><td>Received Amount</td><td class="text-end"><input type="number" step="0.01" min="0" name="paid_amount" id="paidAmount" class="form-control form-control-sm text-end" value="0"></td></tr>
+                            <tr><td>Received Amount</td><td class="text-end"><input type="text" inputmode="decimal" autocomplete="off" name="paid_amount" id="paidAmount" class="form-control form-control-sm text-end" value="0" data-touch-input data-touch-field="paidAmount" data-touch-label="Received Amount"></td></tr>
                             <tr><td class="fw-bold">Due Amount</td><td class="text-end fw-bold" id="dueAmount">PKR 0.00</td></tr>
                             <tr><td class="fw-bold">Return Amount</td><td class="text-end fw-bold text-success" id="returnAmount">PKR 0.00</td></tr>
                         </table>
@@ -239,6 +350,37 @@
                 </div>
             </div>
         </aside>
+    </div>
+</div>
+
+<div class="touch-keypad shadow-sm" id="touchKeypad" aria-label="Touch numeric keypad">
+    <div class="touch-keypad__header">
+        <div>
+            <p class="touch-keypad__title mb-1">Touch Keypad</p>
+            <p class="touch-keypad__field" id="touchKeypadField">Ready</p>
+        </div>
+        <span class="badge bg-light text-dark">Numeric</span>
+    </div>
+    <div class="touch-keypad__display" id="touchKeypadDisplay">0</div>
+    <div class="touch-keypad__grid">
+        <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value="7">7</button>
+        <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value="8">8</button>
+        <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value="9">9</button>
+        <button type="button" class="touch-keypad__button touch-keypad__button--accent" data-keypad-action="backspace">⌫</button>
+
+        <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value="4">4</button>
+        <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value="5">5</button>
+        <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value="6">6</button>
+        <button type="button" class="touch-keypad__button" data-keypad-action="clear">Clear</button>
+
+        <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value="1">1</button>
+        <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value="2">2</button>
+        <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value="3">3</button>
+        <button type="button" class="touch-keypad__button" data-keypad-action="tab">Tab</button>
+
+        <button type="button" class="touch-keypad__button touch-keypad__button--wide" data-keypad-action="digit" data-keypad-value="0">0</button>
+        <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value=".">.</button>
+        <button type="button" class="touch-keypad__button touch-keypad__button--accent" data-keypad-action="next">Next</button>
     </div>
 </div>
 
@@ -271,6 +413,7 @@
     const csrfToken = '{{ csrf_token() }}';
     const syncEndpoint = '{{ route('pos.checkout.sync') }}';
     const cart = new Map();
+    let activeTouchFieldKey = null;
     const checkoutForm = document.getElementById('checkoutForm');
     const cartBody = document.getElementById('cartBody');
     const hiddenItems = document.getElementById('hiddenItems');
@@ -288,8 +431,196 @@
     const networkStatusEl = document.getElementById('networkStatus');
     const pendingSyncBadgeEl = document.getElementById('pendingSyncBadge');
     const syncNowBtn = document.getElementById('syncNowBtn');
+    const touchKeypadEl = document.getElementById('touchKeypad');
+    const touchKeypadDisplayEl = document.getElementById('touchKeypadDisplay');
+    const touchKeypadFieldEl = document.getElementById('touchKeypadField');
 
     function money(value) { return 'PKR ' + Number(value).toFixed(2); }
+
+    function sanitizeNumericValue(value, allowDecimal = true) {
+        let text = String(value ?? '').replace(/[^0-9.]/g, '');
+        if (!allowDecimal) {
+            return text.replace(/\./g, '');
+        }
+
+        const parts = text.split('.');
+        if (parts.length === 1) {
+            return parts[0];
+        }
+
+        return parts.shift() + '.' + parts.join('');
+    }
+
+    function parseNumericValue(value, fallback = 0, allowDecimal = true) {
+        const sanitized = sanitizeNumericValue(value, allowDecimal);
+        if (sanitized === '' || sanitized === '.') {
+            return fallback;
+        }
+
+        const parsed = allowDecimal ? Number.parseFloat(sanitized) : Number.parseInt(sanitized, 10);
+        return Number.isFinite(parsed) ? parsed : fallback;
+    }
+
+    function updateTouchKeypadDisplay() {
+        if (!touchKeypadDisplayEl) {
+            return;
+        }
+
+        if (!activeTouchFieldKey) {
+            touchKeypadDisplayEl.textContent = '0';
+            if (touchKeypadFieldEl) {
+                touchKeypadFieldEl.textContent = 'Ready';
+            }
+            return;
+        }
+
+        const activeInput = document.querySelector('[data-touch-field="' + activeTouchFieldKey + '"]');
+        if (!activeInput) {
+            touchKeypadDisplayEl.textContent = '0';
+            if (touchKeypadFieldEl) {
+                touchKeypadFieldEl.textContent = 'Ready';
+            }
+            return;
+        }
+
+        touchKeypadDisplayEl.textContent = activeInput.value || '0';
+        if (touchKeypadFieldEl) {
+            touchKeypadFieldEl.textContent = activeInput.dataset.touchLabel || activeInput.name || 'Numeric field';
+        }
+    }
+
+    function setActiveTouchInput(input) {
+        if (!input) {
+            activeTouchFieldKey = null;
+            updateTouchKeypadDisplay();
+            return;
+        }
+
+        activeTouchFieldKey = input.dataset.touchField || null;
+        updateTouchKeypadDisplay();
+    }
+
+    function restoreTouchFocus() {
+        if (!activeTouchFieldKey) {
+            updateTouchKeypadDisplay();
+            return;
+        }
+
+        const activeInput = document.querySelector('[data-touch-field="' + activeTouchFieldKey + '"]');
+        if (!activeInput) {
+            activeTouchFieldKey = null;
+            updateTouchKeypadDisplay();
+            return;
+        }
+
+        activeInput.focus();
+        try {
+            const end = String(activeInput.value || '').length;
+            activeInput.setSelectionRange(end, end);
+        } catch (e) {
+        }
+
+        updateTouchKeypadDisplay();
+    }
+
+    function getTouchInputs() {
+        return Array.from(document.querySelectorAll('[data-touch-input]')).filter((input) => !input.disabled);
+    }
+
+    function focusTouchInputByIndex(startIndex, step) {
+        const inputs = getTouchInputs();
+        if (inputs.length === 0) {
+            return;
+        }
+
+        const currentIndex = Math.max(0, startIndex);
+        const nextIndex = (currentIndex + step + inputs.length) % inputs.length;
+        const nextInput = inputs[nextIndex];
+        nextInput.focus();
+        setActiveTouchInput(nextInput);
+    }
+
+    function focusNextTouchInput() {
+        const inputs = getTouchInputs();
+        if (inputs.length === 0) {
+            return;
+        }
+
+        const currentIndex = Math.max(0, inputs.findIndex((input) => input.dataset.touchField === activeTouchFieldKey));
+        focusTouchInputByIndex(currentIndex, 1);
+    }
+
+    function syncTouchInputValue(input) {
+        if (!input || !input.dataset.touchField) {
+            return;
+        }
+
+        const fieldKey = input.dataset.touchField;
+        const fieldType = input.dataset.fieldType || '';
+        const allowDecimal = input.dataset.allowDecimal !== 'false';
+
+        if (fieldKey === 'additionalDiscount' || fieldKey === 'paidAmount') {
+            const parsedValue = parseNumericValue(input.value, 0, allowDecimal);
+            input.value = parsedValue.toFixed(2);
+            renderCart();
+            return;
+        }
+
+        const lineKey = input.dataset.lineKey;
+        if (!lineKey || !cart.has(lineKey)) {
+            return;
+        }
+
+        const item = cart.get(lineKey);
+
+        if (fieldKey === 'qty') {
+            let quantity = parseNumericValue(input.value, 1, false);
+            quantity = Math.max(1, Math.floor(quantity));
+            quantity = Math.min(quantity, item.stock);
+            item.quantity = quantity;
+            input.value = String(quantity);
+        } else if (fieldKey === 'price') {
+            let price = parseNumericValue(input.value, item.price, true);
+            price = Math.max(0, price);
+            item.price = price;
+            input.value = price.toFixed(2);
+        } else if (fieldKey === 'discount') {
+            let discount = parseNumericValue(input.value, 0, true);
+            const maxDiscount = Math.max(0, item.price * item.quantity);
+            discount = Math.min(Math.max(0, discount), maxDiscount);
+            item.discount = discount;
+            input.value = discount.toFixed(2);
+        }
+
+        renderCart();
+    }
+
+    function updateFieldFromKeypad(action, value) {
+        const activeInput = activeTouchFieldKey ? document.querySelector('[data-touch-field="' + activeTouchFieldKey + '"]') : null;
+        if (!activeInput) {
+            return;
+        }
+
+        if (action === 'tab' || action === 'next') {
+            focusNextTouchInput();
+            return;
+        }
+
+        if (action === 'clear') {
+            activeInput.value = '0';
+        } else if (action === 'backspace') {
+            activeInput.value = activeInput.value.length > 1 ? activeInput.value.slice(0, -1) : '0';
+        } else if (action === 'digit') {
+            const current = activeInput.value === '0' ? '' : activeInput.value;
+            if (value === '.' && current.includes('.')) {
+                return;
+            }
+
+            activeInput.value = sanitizeNumericValue(current + value, activeInput.dataset.allowDecimal !== 'false');
+        }
+
+        syncTouchInputValue(activeInput);
+    }
 
     function getQueue() {
         try {
@@ -331,6 +662,7 @@
             items.push({
                 product_id: item.id,
                 quantity: item.quantity,
+                unit_price: Number(item.price || 0),
                 discount: Number(item.discount || 0),
             });
         });
@@ -344,20 +676,18 @@
             paid_amount: Number(paidAmountEl.value || 0),
             items,
         };
-    }
+            if (fieldType === 'qty') {
 
     function validateOfflinePayload(payload) {
         if (!payload.items || payload.items.length === 0) {
             return 'Add at least one item before checkout.';
         }
-        if (!payload.customer_id && payload.payment_method === 'pay_later') {
+            } else if (fieldType === 'price') {
             return 'Walk in customer cannot use Pay Later.';
         }
 
         const subtotal = payload.items.reduce((sum, line) => {
-            const item = Array.from(cart.values()).find((ci) => ci.id === line.product_id);
-            if (!item) { return sum; }
-            const gross = Number(item.price) * Number(line.quantity);
+            } else if (fieldType === 'discount') {
             const discount = Math.min(Number(line.discount || 0), gross);
             return sum + (gross - discount);
         }, 0);
@@ -417,7 +747,7 @@
         let subtotal = 0; let discountTotal = 0; let payableBeforeHeader = 0; let index = 0;
 
         if (cart.size === 0) {
-            cartBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No products selected</td></tr>';
+            cartBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No products selected</td></tr>';
             subTotalEl.textContent = money(0); discountTotalEl.textContent = money(0); totalPayableEl.textContent = money(0);
             itemsCount.textContent = 'Items: 0'; checkoutBtn.disabled = true; return;
         }
@@ -430,18 +760,23 @@
             item.discount = discount;
             const lineTotal = gross - discount;
             subtotal += gross; discountTotal += discount; payableBeforeHeader += lineTotal;
+            const priceFieldKey = 'price-' + key;
+            const qtyFieldKey = 'qty-' + key;
+            const discountFieldKey = 'discount-' + key;
 
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td><a href="javascript:void(0);" data-remove="${key}" class="me-2"><i class="ti ti-trash"></i></a>${item.name}<br><small class="text-muted">${item.unit}</small></td>
-                <td><input type="number" min="1" max="${item.stock}" value="${item.quantity}" class="form-control line-qty" data-qty="${key}"></td>
-                <td><input type="number" min="0" max="${gross.toFixed(2)}" value="${item.discount}" step="0.01" class="form-control form-control-sm line-discount" data-discount="${key}"></td>
+                <td><input type="text" inputmode="numeric" autocomplete="off" min="1" max="${item.stock}" value="${item.quantity}" class="form-control line-qty" data-touch-input data-touch-field="${qtyFieldKey}" data-touch-label="${item.name} quantity" data-line-key="${key}" data-field-type="qty" data-allow-decimal="false"></td>
+                <td><input type="text" inputmode="decimal" autocomplete="off" value="${Number(item.price).toFixed(2)}" class="form-control form-control-sm line-price" data-touch-input data-touch-field="${priceFieldKey}" data-touch-label="${item.name} price" data-line-key="${key}" data-field-type="price"></td>
+                <td><input type="text" inputmode="decimal" autocomplete="off" min="0" max="${gross.toFixed(2)}" value="${item.discount}" step="0.01" class="form-control form-control-sm line-discount" data-touch-input data-touch-field="${discountFieldKey}" data-touch-label="${item.name} discount" data-line-key="${key}" data-field-type="discount"></td>
                 <td class="text-end">${money(lineTotal)}</td>`;
             cartBody.appendChild(row);
 
             hiddenItems.insertAdjacentHTML('beforeend',
                 '<input type="hidden" name="items[' + index + '][product_id]" value="' + item.id + '">' +
                 '<input type="hidden" name="items[' + index + '][quantity]" value="' + item.quantity + '">' +
+                '<input type="hidden" name="items[' + index + '][unit_price]" value="' + Number(item.price).toFixed(2) + '">' +
                 '<input type="hidden" name="items[' + index + '][discount]" value="' + item.discount + '">'
             );
             index++;
@@ -471,10 +806,34 @@
         returnAmountEl.textContent = money(changeAmount);
         itemsCount.textContent = 'Items: ' + cart.size;
         checkoutBtn.disabled = false;
+
+        restoreTouchFocus();
     }
 
     [additionalDiscountEl, paidAmountEl].forEach((el) => {
-        el.addEventListener('input', renderCart);
+        el.addEventListener('focus', function () {
+            setActiveTouchInput(this);
+        });
+        el.addEventListener('click', function () {
+            setActiveTouchInput(this);
+        });
+        el.addEventListener('input', function () {
+            syncTouchInputValue(this);
+        });
+    });
+
+    cartBody.addEventListener('focusin', function (event) {
+        const touchInput = event.target.closest('[data-touch-input]');
+        if (touchInput) {
+            setActiveTouchInput(touchInput);
+        }
+    });
+
+    cartBody.addEventListener('click', function (event) {
+        const touchInput = event.target.closest('[data-touch-input]');
+        if (touchInput) {
+            setActiveTouchInput(touchInput);
+        }
     });
 
     paymentMethodEl.addEventListener('change', function () {
@@ -509,27 +868,39 @@
     });
 
     cartBody.addEventListener('change', function (event) {
-        const qtyInput = event.target.closest('[data-qty]');
-        if (qtyInput) {
-            const item = cart.get(qtyInput.dataset.qty); if (!item) { return; }
-            let qty = Number(qtyInput.value); if (!Number.isFinite(qty) || qty < 1) { qty = 1; }
-            if (qty > item.stock) { qty = item.stock; }
-            item.quantity = qty; renderCart(); return;
+        const touchInput = event.target.closest('[data-touch-input]');
+        if (touchInput) {
+            syncTouchInputValue(touchInput);
+            setActiveTouchInput(touchInput);
         }
+    });
 
-        const discountInput = event.target.closest('[data-discount]');
-        if (discountInput) {
-            const item = cart.get(discountInput.dataset.discount); if (!item) { return; }
-            let discount = Number(discountInput.value); if (!Number.isFinite(discount) || discount < 0) { discount = 0; }
-            const maxDiscount = item.price * item.quantity; if (discount > maxDiscount) { discount = maxDiscount; }
-            item.discount = discount; renderCart();
+    cartBody.addEventListener('input', function (event) {
+        const touchInput = event.target.closest('[data-touch-input]');
+        if (touchInput) {
+            syncTouchInputValue(touchInput);
+            setActiveTouchInput(touchInput);
         }
     });
 
     cartBody.addEventListener('click', function (event) {
         const removeBtn = event.target.closest('[data-remove]');
-        if (removeBtn) { cart.delete(removeBtn.dataset.remove); renderCart(); }
+        if (removeBtn) {
+            cart.delete(removeBtn.dataset.remove);
+            renderCart();
+        }
     });
+
+    if (touchKeypadEl) {
+        touchKeypadEl.addEventListener('click', function (event) {
+            const button = event.target.closest('[data-keypad-action]');
+            if (!button) {
+                return;
+            }
+
+            updateFieldFromKeypad(button.dataset.keypadAction, button.dataset.keypadValue || '');
+        });
+    }
 
     const productSearchEl = document.getElementById('productSearch');
     if (productSearchEl) {
@@ -600,6 +971,7 @@
         additionalDiscountEl.value = '0';
         paidAmountEl.value = '0';
         paymentMethodEl.value = 'cash';
+        activeTouchFieldKey = null;
         renderCart();
 
         alert('Internet is offline. Order saved locally and will sync automatically when connection returns.');

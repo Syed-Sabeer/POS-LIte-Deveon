@@ -27,17 +27,26 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('stripe/webhook', [BillingController::class, 'webhook'])->name('billing.webhook');
 
+
+
 Route::middleware('auth')->get('storage-link', function () {
     try {
-        // Remove old symlink if it exists, then recreate it.
-        Artisan::call('storage:unlink');
+        $link = public_path('storage');
+
+        // Remove existing symlink if it exists
+        if (File::exists($link)) {
+            File::delete($link); // works for symlink
+        }
+
+        // Recreate symlink
         Artisan::call('storage:link');
 
         return response()->json([
             'ok' => true,
             'message' => 'Storage link recreated successfully.',
-            'unlink_output' => trim(Artisan::output()),
+            'output' => trim(Artisan::output()),
         ]);
+
     } catch (\Throwable $e) {
         return response()->json([
             'ok' => false,

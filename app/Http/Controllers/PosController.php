@@ -67,6 +67,9 @@ class PosController extends Controller
 
             foreach ($validated['items'] as $item) {
                 $product = Product::lockForUpdate()->findOrFail($item['product_id']);
+                $unitPrice = array_key_exists('unit_price', $item)
+                    ? max(0, (float) $item['unit_price'])
+                    : (float) $product->selling_price;
 
                 if ($product->quantity < $item['quantity']) {
                     throw ValidationException::withMessages([
@@ -74,7 +77,7 @@ class PosController extends Controller
                     ]);
                 }
 
-                $grossLine = (float) $product->selling_price * (int) $item['quantity'];
+                $grossLine = $unitPrice * (int) $item['quantity'];
                 $discount = isset($item['discount']) ? (float) $item['discount'] : 0;
                 if ($discount > $grossLine) {
                     $discount = $grossLine;
@@ -86,7 +89,7 @@ class PosController extends Controller
                 $lines[] = [
                     'product' => $product,
                     'quantity' => (int) $item['quantity'],
-                    'unit_price' => (float) $product->selling_price,
+                    'unit_price' => $unitPrice,
                     'cost_price' => (float) $product->cost_price,
                     'discount_amount' => $discount,
                     'line_total' => $lineTotal,
