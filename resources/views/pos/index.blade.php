@@ -574,6 +574,8 @@
             return;
         }
 
+        const keypadPositionKey = 'posTouchKeypadPositionV1';
+
         const dragHandle = touchKeypadEl.querySelector('[data-touch-drag-handle]');
         if (!dragHandle) {
             return;
@@ -589,6 +591,51 @@
             return Math.min(max, Math.max(min, value));
         }
 
+        function getViewportBounds() {
+            return {
+                maxLeft: Math.max(0, window.innerWidth - touchKeypadEl.offsetWidth),
+                maxTop: Math.max(0, window.innerHeight - touchKeypadEl.offsetHeight),
+            };
+        }
+
+        function savePosition(left, top) {
+            try {
+                localStorage.setItem(keypadPositionKey, JSON.stringify({ left, top }));
+            } catch (e) {
+            }
+        }
+
+        function applyPosition(left, top) {
+            const bounds = getViewportBounds();
+            const safeLeft = clamp(Number(left) || 0, 0, bounds.maxLeft);
+            const safeTop = clamp(Number(top) || 0, 0, bounds.maxTop);
+
+            touchKeypadEl.style.left = safeLeft + 'px';
+            touchKeypadEl.style.top = safeTop + 'px';
+            touchKeypadEl.style.right = 'auto';
+            touchKeypadEl.style.bottom = 'auto';
+
+            return { left: safeLeft, top: safeTop };
+        }
+
+        function restoreSavedPosition() {
+            try {
+                const raw = localStorage.getItem(keypadPositionKey);
+                if (!raw) {
+                    return;
+                }
+
+                const parsed = JSON.parse(raw);
+                if (typeof parsed?.left !== 'number' || typeof parsed?.top !== 'number') {
+                    return;
+                }
+
+                const applied = applyPosition(parsed.left, parsed.top);
+                savePosition(applied.left, applied.top);
+            } catch (e) {
+            }
+        }
+
         function onPointerMove(event) {
             if (!dragging) {
                 return;
@@ -596,13 +643,9 @@
 
             const nextLeft = initialLeft + (event.clientX - startX);
             const nextTop = initialTop + (event.clientY - startY);
-            const maxLeft = Math.max(0, window.innerWidth - touchKeypadEl.offsetWidth);
-            const maxTop = Math.max(0, window.innerHeight - touchKeypadEl.offsetHeight);
+            const bounds = getViewportBounds();
 
-            touchKeypadEl.style.left = clamp(nextLeft, 0, maxLeft) + 'px';
-            touchKeypadEl.style.top = clamp(nextTop, 0, maxTop) + 'px';
-            touchKeypadEl.style.right = 'auto';
-            touchKeypadEl.style.bottom = 'auto';
+            applyPosition(clamp(nextLeft, 0, bounds.maxLeft), clamp(nextTop, 0, bounds.maxTop));
         }
 
         function onPointerUp() {
@@ -612,6 +655,10 @@
 
             dragging = false;
             touchKeypadEl.classList.remove('dragging');
+
+            const rect = touchKeypadEl.getBoundingClientRect();
+            savePosition(rect.left, rect.top);
+
             window.removeEventListener('pointermove', onPointerMove);
             window.removeEventListener('pointerup', onPointerUp);
             window.removeEventListener('pointercancel', onPointerUp);
@@ -641,6 +688,14 @@
             window.addEventListener('pointerup', onPointerUp);
             window.addEventListener('pointercancel', onPointerUp);
         });
+
+        window.addEventListener('resize', function () {
+            const rect = touchKeypadEl.getBoundingClientRect();
+            const applied = applyPosition(rect.left, rect.top);
+            savePosition(applied.left, applied.top);
+        });
+
+        restoreSavedPosition();
     }
 
     function syncTouchInputValue(input) {
