@@ -1,4 +1,4 @@
-﻿@extends('layouts.app.master')
+@extends('layouts.app.master')
 
 @section('title', 'POS')
 
@@ -300,7 +300,7 @@
                         <div class="mb-3">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <label class="form-label mb-0">Customer</label>
-                                <button type="button" class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#addCustomerModal">Add Customer</button>
+                                <button type="button" class="btn btn-sm btn-light" id="openAddCustomerModalBtn">Add Customer</button>
                             </div>
                             <input type="text" id="customerSearch" class="form-control mb-2" placeholder="Search customer">
                             <select name="customer_id" id="customerSelect" class="form-control">
@@ -332,13 +332,13 @@
                         </div>
 
                         <table class="table table-borderless mb-3">
-                            <tr><td>Sub Total</td><td class="text-end" id="subTotal">PKR 0.00</td></tr>
-                            <tr><td>Line Discount</td><td class="text-end" id="discountTotal">PKR 0.00</td></tr>
-                            <tr><td>Extra Discount</td><td class="text-end"><input type="text" inputmode="decimal" autocomplete="off" name="additional_discount" id="additionalDiscount" class="form-control form-control-sm text-end" value="0" data-touch-input data-touch-field="additionalDiscount" data-touch-label="Extra Discount"></td></tr>
-                            <tr><td class="fw-bold border-top">Total Payable</td><td class="text-end fw-bold border-top" id="totalPayable">PKR 0.00</td></tr>
-                            <tr><td>Received Amount</td><td class="text-end"><input type="text" inputmode="decimal" autocomplete="off" name="paid_amount" id="paidAmount" class="form-control form-control-sm text-end" value="0" data-touch-input data-touch-field="paidAmount" data-touch-label="Received Amount"></td></tr>
-                            <tr><td class="fw-bold">Due Amount</td><td class="text-end fw-bold" id="dueAmount">PKR 0.00</td></tr>
-                            <tr><td class="fw-bold">Return Amount</td><td class="text-end fw-bold text-success" id="returnAmount">PKR 0.00</td></tr>
+                            <tr><td>Sub Total</td><td class="text-end" id="subTotal">PKR 0</td></tr>
+                            <tr><td>Line Discount</td><td class="text-end" id="discountTotal">PKR 0</td></tr>
+                            <tr><td>Extra Discount</td><td class="text-end"><input type="text" inputmode="numeric" autocomplete="off" name="additional_discount" id="additionalDiscount" class="form-control form-control-sm text-center" value="0" data-touch-input data-touch-field="additionalDiscount" data-touch-label="Extra Discount" data-allow-decimal="false"></td></tr>
+                            <tr><td class="fw-bold border-top">Total Payable</td><td class="text-end fw-bold border-top" id="totalPayable">PKR 0</td></tr>
+                            <tr><td>Received Amount</td><td class="text-end"><input type="text" inputmode="numeric" autocomplete="off" name="paid_amount" id="paidAmount" class="form-control form-control-sm text-center" value="0" data-touch-input data-touch-field="paidAmount" data-touch-label="Received Amount" data-allow-decimal="false"></td></tr>
+                            <tr><td class="fw-bold">Due Amount</td><td class="text-center fw-bold" id="dueAmount">PKR 0</td></tr>
+                            <tr><td class="fw-bold">Return Amount</td><td class="text-end fw-bold text-success" id="returnAmount">PKR 0</td></tr>
                         </table>
 
                         <input type="hidden" name="invoice_date" value="{{ old('invoice_date', now()->toDateString()) }}">
@@ -384,11 +384,11 @@
         <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value="1">1</button>
         <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value="2">2</button>
         <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value="3">3</button>
-        <button type="button" class="touch-keypad__button" data-keypad-action="submit">-></button>
+        <button type="button" class="touch-keypad__button touch-keypad__button--accent" data-keypad-action="next">Next</button>
 
         <button type="button" class="touch-keypad__button touch-keypad__button--wide" data-keypad-action="digit" data-keypad-value="0">0</button>
         <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value=".">.</button>
-        <button type="button" class="touch-keypad__button touch-keypad__button--accent" data-keypad-action="next">Next</button>
+        <button type="button" class="touch-keypad__button" data-keypad-action="submit">-></button>
     </div>
 </div>
 
@@ -437,6 +437,7 @@
     const pendingSyncBadgeEl = document.getElementById('pendingSyncBadge');
     const syncNowBtn = document.getElementById('syncNowBtn');
     const clearFormBtn = document.getElementById('clearFormBtn');
+    const addCustomerBtn = document.getElementById('openAddCustomerModalBtn');
     const touchKeypadEl = document.getElementById('touchKeypad');
     const touchKeypadDisplayEl = document.getElementById('touchKeypadDisplay');
     const touchKeypadFieldEl = document.getElementById('touchKeypadField');
@@ -641,8 +642,8 @@
         const allowDecimal = input.dataset.allowDecimal !== 'false';
 
         if (fieldKey === 'additionalDiscount' || fieldKey === 'paidAmount') {
-            const parsedValue = parseNumericValue(input.value, 0, allowDecimal);
-            input.value = parsedValue.toFixed(2);
+            const parsedValue = parseNumericValue(input.value, 0, false);
+            input.value = String(parsedValue);
             renderCart();
             return;
         }
@@ -671,11 +672,11 @@
             item.price = price;
             input.value = String(price);
         } else if (fieldType === 'discount') {
-            let discount = parseNumericValue(input.value, 0, true);
+            let discount = parseNumericValue(input.value, 0, false);
             const maxDiscount = Math.max(0, item.price * item.quantity);
             discount = Math.min(Math.max(0, discount), maxDiscount);
             item.discount = discount;
-            input.value = discount.toFixed(2);
+            input.value = String(discount);
         }
 
         renderCart();
@@ -893,8 +894,8 @@
             row.innerHTML = `
                 <td><a href="javascript:void(0);" data-remove="${key}" class="me-2"><i class="ti ti-trash"></i></a>${item.name}<br><small class="text-muted">${item.unit}</small></td>
                 <td><input type="text" inputmode="numeric" autocomplete="off" value="${item.quantity}" class="form-control line-qty" data-touch-input data-touch-field="${qtyFieldKey}" data-touch-label="${item.name} quantity" data-line-key="${key}" data-field-type="qty" data-allow-decimal="false"></td>
-                <td><input type="text" inputmode="numeric" autocomplete="off" value="${Math.round(Number(item.price))}" class="form-control form-control-sm line-price" data-touch-input data-touch-field="${priceFieldKey}" data-touch-label="${item.name} price" data-line-key="${key}" data-field-type="price" data-allow-decimal="false"></td>
-                <td><input type="text" inputmode="decimal" autocomplete="off" value="${item.discount}" class="form-control form-control-sm line-discount" data-touch-input data-touch-field="${discountFieldKey}" data-touch-label="${item.name} discount" data-line-key="${key}" data-field-type="discount"></td>
+                <td><input type="text" inputmode="numeric" autocomplete="off" value="${Math.round(Number(item.price))}" class="form-control form-control-sm line-price text-center" data-touch-input data-touch-field="${priceFieldKey}" data-touch-label="${item.name} price" data-line-key="${key}" data-field-type="price" data-allow-decimal="false"></td>
+                <td><input type="text" inputmode="numeric" autocomplete="off" value="${Math.round(Number(item.discount))}" class="form-control form-control-sm line-discount text-center" data-touch-input data-touch-field="${discountFieldKey}" data-touch-label="${item.name} discount" data-line-key="${key}" data-field-type="discount" data-allow-decimal="false"></td>
                 <td class="text-end">${money(lineTotal)}</td>`;
             cartBody.appendChild(row);
 
@@ -902,7 +903,7 @@
                 '<input type="hidden" name="items[' + index + '][product_id]" value="' + item.id + '">' +
                 '<input type="hidden" name="items[' + index + '][quantity]" value="' + item.quantity + '">' +
                 '<input type="hidden" name="items[' + index + '][unit_price]" value="' + Math.round(Number(item.price)) + '">' +
-                '<input type="hidden" name="items[' + index + '][discount]" value="' + item.discount + '">'
+                '<input type="hidden" name="items[' + index + '][discount]" value="' + Math.round(Number(item.discount)) + '">'
             );
             index++;
         });
@@ -1019,6 +1020,25 @@
                 return;
             }
             updateFieldFromKeypad(button.dataset.keypadAction, button.dataset.keypadValue || '');
+        });
+    }
+
+    if (addCustomerBtn) {
+        addCustomerBtn.addEventListener('click', function () {
+            const modalEl = document.getElementById('addCustomerModal');
+            if (!modalEl || !window.bootstrap || !window.bootstrap.Modal) {
+                return;
+            }
+
+            const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+            modal.show();
+
+            const firstField = modalEl.querySelector('input[name="full_name"]');
+            if (firstField) {
+                setTimeout(function () {
+                    firstField.focus();
+                }, 150);
+            }
         });
     }
 
