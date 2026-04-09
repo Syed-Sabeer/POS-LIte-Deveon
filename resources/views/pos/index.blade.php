@@ -281,9 +281,9 @@
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between mb-3">
                         <h3 class="mb-0">Order List</h3>
-                        <span class="badge badge-dark fs-10 fw-medium badge-xs" id="itemsCount">Items: 0</span>
                     </div>
-                    <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
+                    <div class="d-flex align-items-center justify-content-between mb-3 gap-2 flex-wrap">
+                        <span class="badge badge-dark fs-10 fw-medium badge-xs" id="itemsCount">Items: 0</span>
                         <span class="badge bg-success" id="networkStatus">Online</span>
                         <span class="badge bg-warning text-dark" id="pendingSyncBadge">Pending Sync: 0</span>
                         <button type="button" class="btn btn-sm btn-outline-danger" id="clearFormBtn">Clear Form</button>
@@ -384,11 +384,11 @@
         <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value="1">1</button>
         <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value="2">2</button>
         <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value="3">3</button>
-        <button type="button" class="touch-keypad__button touch-keypad__button--accent" data-keypad-action="next">Next</button>
+        <button type="button" class="touch-keypad__button  data-keypad-action="next">Next</button>
 
         <button type="button" class="touch-keypad__button touch-keypad__button--wide" data-keypad-action="digit" data-keypad-value="0">0</button>
         <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value=".">.</button>
-        <button type="button" class="touch-keypad__button" data-keypad-action="submit">-></button>
+        <button type="button" class="touch-keypad__button touch-keypad__button--accent"  data-keypad-action="submit">-></button>
     </div>
 </div>
 
