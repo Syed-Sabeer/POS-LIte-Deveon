@@ -32,7 +32,7 @@ class CustomerController extends Controller
             'is_active' => ['nullable', 'boolean'],
         ]);
 
-        DB::transaction(function () use ($validated, $request) {
+        $customer = DB::transaction(function () use ($validated, $request) {
             $customer = Customer::create($validated + [
                 'opening_balance' => $validated['opening_balance'] ?? 0,
                 'balance_type' => $validated['balance_type'] ?? 'dr',
@@ -56,7 +56,22 @@ class CustomerController extends Controller
                     'created_by' => auth()->id(),
                 ]);
             }
+
+            return $customer;
         });
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'ok' => true,
+                'message' => 'Customer created successfully.',
+                'customer' => [
+                    'id' => $customer->id,
+                    'full_name' => $customer->full_name,
+                    'company_name' => $customer->company_name,
+                    'phone' => $customer->phone,
+                ],
+            ]);
+        }
 
         return back()->with('success', 'Customer created successfully.');
     }

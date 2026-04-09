@@ -262,7 +262,7 @@
                                     <h6 class="product-name mb-1">{{ $product->name }}</h6>
                                     <div class="pos-product-meta">
                                         <span class="pos-stock-chip">Stock: {{ $product->quantity }} {{ $product->unit ?? 'pcs' }}</span>
-                                        <span class="pos-price-chip">PKR {{ number_format($product->selling_price, 2) }}</span>
+                                        <span class="pos-price-chip">PKR {{ number_format($product->selling_price, 0) }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -286,6 +286,7 @@
                     <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
                         <span class="badge bg-success" id="networkStatus">Online</span>
                         <span class="badge bg-warning text-dark" id="pendingSyncBadge">Pending Sync: 0</span>
+                        <button type="button" class="btn btn-sm btn-outline-danger" id="clearFormBtn">Clear Form</button>
                         <button type="button" class="btn btn-sm btn-outline-primary" id="syncNowBtn">Sync Now</button>
                     </div>
 
@@ -299,7 +300,7 @@
                         <div class="mb-3">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <label class="form-label mb-0">Customer</label>
-                                <button type="button" class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#addCustomerModal">Add</button>
+                                <button type="button" class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#addCustomerModal">Add Customer</button>
                             </div>
                             <input type="text" id="customerSearch" class="form-control mb-2" placeholder="Search customer">
                             <select name="customer_id" id="customerSelect" class="form-control">
@@ -387,7 +388,7 @@
 
         <button type="button" class="touch-keypad__button touch-keypad__button--wide" data-keypad-action="digit" data-keypad-value="0">0</button>
         <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value=".">.</button>
-        <button type="button" class="touch-keypad__button touch-keypad__button--accent" data-keypad-action="submit">-></button>
+        <button type="button" class="touch-keypad__button touch-keypad__button--accent" data-keypad-action="next">Next</button>
     </div>
 </div>
 
@@ -395,15 +396,12 @@
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header"><h5 class="modal-title">Add Customer</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-            <form method="POST" action="{{ route('customers.store') }}">
+            <form method="POST" action="{{ route('customers.store') }}" id="addCustomerForm">
                 @csrf
                 <div class="modal-body">
                     <div class="row">
                         <div class="col-md-6 mb-3"><label class="form-label">Full Name *</label><input type="text" name="full_name" class="form-control" required></div>
                         <div class="col-md-6 mb-3"><label class="form-label">Company Name</label><input type="text" name="company_name" class="form-control"></div>
-                        <div class="col-md-6 mb-3"><label class="form-label">Phone</label><input type="text" name="phone" class="form-control"></div>
-                        <div class="col-md-6 mb-3"><label class="form-label">Email</label><input type="email" name="email" class="form-control"></div>
-                        <div class="col-12"><label class="form-label">Address</label><textarea name="address" class="form-control" rows="2"></textarea></div>
                     </div>
                 </div>
                 <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary">Save Customer</button></div>
@@ -438,11 +436,13 @@
     const networkStatusEl = document.getElementById('networkStatus');
     const pendingSyncBadgeEl = document.getElementById('pendingSyncBadge');
     const syncNowBtn = document.getElementById('syncNowBtn');
+    const clearFormBtn = document.getElementById('clearFormBtn');
     const touchKeypadEl = document.getElementById('touchKeypad');
     const touchKeypadDisplayEl = document.getElementById('touchKeypadDisplay');
     const touchKeypadFieldEl = document.getElementById('touchKeypadField');
+    const addCustomerForm = document.getElementById('addCustomerForm');
 
-    function money(value) { return 'PKR ' + Number(value).toFixed(2); }
+    function money(value) { return 'PKR ' + Number(value).toFixed(0); }
 
     function sanitizeNumericValue(value, allowDecimal = true) {
         let text = String(value ?? '').replace(/[^0-9.]/g, '');
@@ -666,10 +666,10 @@
             item.quantity = quantity;
             input.value = String(quantity);
         } else if (fieldType === 'price') {
-            let price = parseNumericValue(input.value, item.price, true);
+            let price = parseNumericValue(input.value, item.price, false);
             price = Math.max(0, price);
             item.price = price;
-            input.value = price.toFixed(2);
+            input.value = String(price);
         } else if (fieldType === 'discount') {
             let discount = parseNumericValue(input.value, 0, true);
             const maxDiscount = Math.max(0, item.price * item.quantity);
@@ -693,6 +693,11 @@
             if (!checkoutBtn.disabled) {
                 checkoutBtn.click();
             }
+            return;
+        }
+
+        if (action === 'next') {
+            focusNextTouchInput();
             return;
         }
 
@@ -770,6 +775,19 @@
             paid_amount: Number(paidAmountEl.value || 0),
             items,
         };
+    }
+
+    function resetCheckoutForm() {
+        cart.clear();
+        additionalDiscountEl.value = '0';
+        paidAmountEl.value = '0';
+        paymentMethodEl.value = 'cash';
+        customerSelectEl.value = '';
+        if (customerSearch) {
+            customerSearch.value = '';
+        }
+        activeTouchFieldKey = null;
+        renderCart();
     }
 
     function validateOfflinePayload(payload) {
@@ -875,7 +893,7 @@
             row.innerHTML = `
                 <td><a href="javascript:void(0);" data-remove="${key}" class="me-2"><i class="ti ti-trash"></i></a>${item.name}<br><small class="text-muted">${item.unit}</small></td>
                 <td><input type="text" inputmode="numeric" autocomplete="off" value="${item.quantity}" class="form-control line-qty" data-touch-input data-touch-field="${qtyFieldKey}" data-touch-label="${item.name} quantity" data-line-key="${key}" data-field-type="qty" data-allow-decimal="false"></td>
-                <td><input type="text" inputmode="decimal" autocomplete="off" value="${Number(item.price).toFixed(2)}" class="form-control form-control-sm line-price" data-touch-input data-touch-field="${priceFieldKey}" data-touch-label="${item.name} price" data-line-key="${key}" data-field-type="price"></td>
+                <td><input type="text" inputmode="numeric" autocomplete="off" value="${Math.round(Number(item.price))}" class="form-control form-control-sm line-price" data-touch-input data-touch-field="${priceFieldKey}" data-touch-label="${item.name} price" data-line-key="${key}" data-field-type="price" data-allow-decimal="false"></td>
                 <td><input type="text" inputmode="decimal" autocomplete="off" value="${item.discount}" class="form-control form-control-sm line-discount" data-touch-input data-touch-field="${discountFieldKey}" data-touch-label="${item.name} discount" data-line-key="${key}" data-field-type="discount"></td>
                 <td class="text-end">${money(lineTotal)}</td>`;
             cartBody.appendChild(row);
@@ -883,7 +901,7 @@
             hiddenItems.insertAdjacentHTML('beforeend',
                 '<input type="hidden" name="items[' + index + '][product_id]" value="' + item.id + '">' +
                 '<input type="hidden" name="items[' + index + '][quantity]" value="' + item.quantity + '">' +
-                '<input type="hidden" name="items[' + index + '][unit_price]" value="' + Number(item.price).toFixed(2) + '">' +
+                '<input type="hidden" name="items[' + index + '][unit_price]" value="' + Math.round(Number(item.price)) + '">' +
                 '<input type="hidden" name="items[' + index + '][discount]" value="' + item.discount + '">'
             );
             index++;
@@ -1016,46 +1034,80 @@
 
     const customerSearch = document.getElementById('customerSearch');
     const customerSelect = document.getElementById('customerSelect');
-    if (customerSearch && customerSelect) {
-        const originalOptions = Array.from(customerSelect.options).map((option) => ({
+    let customerOptions = [];
+
+    function buildCustomerOptionModel(option) {
+        return {
             value: option.value,
             label: option.text,
             search: (option.dataset.search || option.text || '').toLowerCase(),
-        }));
-
-        customerSearch.addEventListener('input', function () {
-            const term = this.value.toLowerCase().trim();
-            const selectedValue = customerSelect.value;
-            const filtered = originalOptions.filter((item) => {
-                if (!term) { return true; }
-                if (!item.value) { return true; }
-                return item.search.includes(term);
-            });
-
-            customerSelect.innerHTML = '';
-            filtered.forEach((item) => {
-                const option = document.createElement('option');
-                option.value = item.value;
-                option.textContent = item.label;
-                if (item.value === selectedValue) { option.selected = true; }
-                customerSelect.appendChild(option);
-            });
-
-            if (filtered.length === 0) {
-                const emptyOption = document.createElement('option');
-                emptyOption.value = '';
-                emptyOption.textContent = 'No customer found';
-                customerSelect.appendChild(emptyOption);
-            }
-        });
+        };
     }
 
-    checkoutForm.addEventListener('submit', function (event) {
-        if (navigator.onLine) {
+    function renderCustomerOptions(term = '', selectedValue = customerSelect ? customerSelect.value : '') {
+        if (!customerSelect) {
             return;
         }
 
+        const filtered = customerOptions.filter((item) => {
+            if (!term) { return true; }
+            if (!item.value) { return true; }
+            return item.search.includes(term);
+        });
+
+        customerSelect.innerHTML = '';
+        filtered.forEach((item) => {
+            const option = document.createElement('option');
+            option.value = item.value;
+            option.textContent = item.label;
+            if (item.value === selectedValue) {
+                option.selected = true;
+            }
+            customerSelect.appendChild(option);
+        });
+
+        if (filtered.length === 0) {
+            const emptyOption = document.createElement('option');
+            emptyOption.value = '';
+            emptyOption.textContent = 'No customer found';
+            customerSelect.appendChild(emptyOption);
+        }
+    }
+
+    if (customerSelect) {
+        customerOptions = Array.from(customerSelect.options).map(buildCustomerOptionModel);
+    }
+
+    if (customerSearch && customerSelect) {
+        customerSearch.addEventListener('input', function () {
+            renderCustomerOptions(this.value.toLowerCase().trim(), customerSelect.value);
+        });
+    }
+
+    async function submitOnlineCheckout(payload) {
+        const response = await fetch(syncEndpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': csrfToken,
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(payload),
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.ok) {
+            throw new Error(data.message || 'Unable to complete checkout.');
+        }
+
+        return data;
+    }
+
+    checkoutForm.addEventListener('submit', async function (event) {
         event.preventDefault();
+
         const payload = buildCheckoutPayload();
         const validationError = validateOfflinePayload(payload);
         if (validationError) {
@@ -1063,23 +1115,97 @@
             return;
         }
 
-        const queue = getQueue();
-        queue.push({
-            local_id: Date.now(),
-            payload,
-            queued_at: new Date().toISOString(),
-        });
-        saveQueue(queue);
+        checkoutBtn.disabled = true;
 
-        cart.clear();
-        additionalDiscountEl.value = '0';
-        paidAmountEl.value = '0';
-        paymentMethodEl.value = 'cash';
-        activeTouchFieldKey = null;
-        renderCart();
+        if (!navigator.onLine) {
+            const queue = getQueue();
+            queue.push({
+                local_id: Date.now(),
+                payload,
+                queued_at: new Date().toISOString(),
+            });
+            saveQueue(queue);
+            resetCheckoutForm();
+            alert('Internet is offline. Order saved locally and will sync automatically when connection returns.');
+            return;
+        }
 
-        alert('Internet is offline. Order saved locally and will sync automatically when connection returns.');
+        try {
+            const result = await submitOnlineCheckout(payload);
+            resetCheckoutForm();
+            alert(result.message || 'Checkout completed successfully.');
+        } catch (error) {
+            alert(error.message || 'Checkout failed. Try again.');
+            checkoutBtn.disabled = cart.size === 0;
+        }
     });
+
+    if (clearFormBtn) {
+        clearFormBtn.addEventListener('click', function () {
+            resetCheckoutForm();
+        });
+    }
+
+    if (addCustomerForm) {
+        addCustomerForm.addEventListener('submit', async function (event) {
+            event.preventDefault();
+            const submitButton = addCustomerForm.querySelector('button[type="submit"]');
+            if (submitButton) {
+                submitButton.disabled = true;
+            }
+
+            try {
+                const response = await fetch(addCustomerForm.action, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': csrfToken,
+                    },
+                    credentials: 'same-origin',
+                    body: new FormData(addCustomerForm),
+                });
+
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || !data.ok || !data.customer) {
+                    throw new Error(data.message || 'Unable to save customer.');
+                }
+
+                const customer = data.customer;
+                const label = customer.company_name
+                    ? (customer.full_name + ' - ' + customer.company_name)
+                    : customer.full_name;
+                const search = (customer.full_name + ' ' + (customer.company_name || '') + ' ' + (customer.phone || '')).toLowerCase().trim();
+
+                customerOptions = customerOptions.filter((item) => String(item.value) !== String(customer.id));
+                customerOptions.push({
+                    value: String(customer.id),
+                    label,
+                    search,
+                });
+
+                if (customerSearch) {
+                    renderCustomerOptions(customerSearch.value.toLowerCase().trim(), String(customer.id));
+                } else {
+                    renderCustomerOptions('', String(customer.id));
+                }
+
+                addCustomerForm.reset();
+
+                const addCustomerModalEl = document.getElementById('addCustomerModal');
+                if (addCustomerModalEl && window.bootstrap && window.bootstrap.Modal) {
+                    const modalInstance = window.bootstrap.Modal.getOrCreateInstance(addCustomerModalEl);
+                    modalInstance.hide();
+                }
+            } catch (error) {
+                alert(error.message || 'Unable to save customer.');
+            } finally {
+                if (submitButton) {
+                    submitButton.disabled = false;
+                }
+            }
+        });
+    }
 
     syncNowBtn.addEventListener('click', syncOfflineOrders);
     window.addEventListener('online', function () {
