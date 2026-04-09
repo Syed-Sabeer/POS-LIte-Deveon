@@ -268,7 +268,7 @@
                             </div>
                         </div>
                     @empty
-                        <div class="col-12"><div class="alert alert-warning mb-0">No active products with stock found.</div></div>
+                        <div class="col-12"><div class="alert alert-warning mb-0">No active products found.</div></div>
                     @endforelse
                 </div>
             </div>
@@ -326,7 +326,7 @@
                                         <th class="fw-bold bg-light text-end">Total</th>
                                     </tr>
                                 </thead>
-                                <tbody id="cartBody"><tr><td colspan="4" class="text-center text-muted">No products selected</td></tr></tbody>
+                                <tbody id="cartBody"><tr><td colspan="5" class="text-center text-muted">No products selected</td></tr></tbody>
                             </table>
                         </div>
 
@@ -383,11 +383,11 @@
         <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value="1">1</button>
         <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value="2">2</button>
         <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value="3">3</button>
-        <button type="button" class="touch-keypad__button" data-keypad-action="tab">Tab</button>
+        <button type="button" class="touch-keypad__button" data-keypad-action="submit">-></button>
 
         <button type="button" class="touch-keypad__button touch-keypad__button--wide" data-keypad-action="digit" data-keypad-value="0">0</button>
         <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value=".">.</button>
-        <button type="button" class="touch-keypad__button touch-keypad__button--accent" data-keypad-action="next">Next</button>
+        <button type="button" class="touch-keypad__button touch-keypad__button--accent" data-keypad-action="submit">-></button>
     </div>
 </div>
 
@@ -654,8 +654,7 @@
 
         const rawValue = String(input.value || '').trim();
         if (fieldType === 'qty' && rawValue === '') {
-            cart.delete(lineKey);
-            renderCart();
+            updateTouchKeypadDisplay();
             return;
         }
 
@@ -664,7 +663,6 @@
         if (fieldType === 'qty') {
             let quantity = parseNumericValue(input.value, 1, false);
             quantity = Math.max(1, Math.floor(quantity));
-            quantity = Math.min(quantity, item.stock);
             item.quantity = quantity;
             input.value = String(quantity);
         } else if (fieldType === 'price') {
@@ -691,8 +689,10 @@
 
         const activeFieldType = activeInput.dataset.fieldType || '';
 
-        if (action === 'tab' || action === 'next') {
-            focusNextTouchInput();
+        if (action === 'submit') {
+            if (!checkoutBtn.disabled) {
+                checkoutBtn.click();
+            }
             return;
         }
 
@@ -966,13 +966,10 @@
         const id = Number(cardEl.dataset.id);
         const key = String(id);
         const stock = Number(cardEl.dataset.stock);
-        if (stock <= 0) { return; }
 
         if (cart.has(key)) {
             const existing = cart.get(key);
-            if (existing.quantity < existing.stock) {
-                existing.quantity += 1;
-            }
+            existing.quantity += 1;
         } else {
             cart.set(key, {
                 id,

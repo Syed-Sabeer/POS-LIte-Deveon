@@ -26,7 +26,6 @@ class PosController extends Controller
     public function index()
     {
         $products = Product::where('is_active', true)
-            ->where('quantity', '>', 0)
             ->orderBy('name')
             ->get();
 
@@ -70,12 +69,6 @@ class PosController extends Controller
                 $unitPrice = array_key_exists('unit_price', $item)
                     ? max(0, (float) $item['unit_price'])
                     : (float) $product->selling_price;
-
-                if ($product->quantity < $item['quantity']) {
-                    throw ValidationException::withMessages([
-                        'items' => 'Insufficient stock for ' . $product->name . '.',
-                    ]);
-                }
 
                 $grossLine = $unitPrice * (int) $item['quantity'];
                 $discount = isset($item['discount']) ? (float) $item['discount'] : 0;
