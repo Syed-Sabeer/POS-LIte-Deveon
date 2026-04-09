@@ -1,4 +1,4 @@
-@extends('layouts.app.master')
+﻿@extends('layouts.app.master')
 
 @section('title', 'POS')
 
@@ -134,6 +134,13 @@
     gap: 12px;
     padding: 12px 14px 8px;
     border-bottom: 1px solid #edf0f2;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+}
+
+.touch-keypad.dragging .touch-keypad__header {
+    cursor: grabbing;
 }
 
 .touch-keypad__title {
@@ -354,7 +361,7 @@
 </div>
 
 <div class="touch-keypad shadow-sm" id="touchKeypad" aria-label="Touch numeric keypad">
-    <div class="touch-keypad__header">
+    <div class="touch-keypad__header" data-touch-drag-handle>
         <div>
             <p class="touch-keypad__title mb-1">Touch Keypad</p>
             <p class="touch-keypad__field" id="touchKeypadField">Ready</p>
@@ -366,7 +373,7 @@
         <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value="7">7</button>
         <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value="8">8</button>
         <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value="9">9</button>
-        <button type="button" class="touch-keypad__button touch-keypad__button--accent" data-keypad-action="backspace">⌫</button>
+        <button type="button" class="touch-keypad__button touch-keypad__button--accent" data-keypad-action="backspace">Bksp</button>
 
         <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value="4">4</button>
         <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value="5">5</button>
@@ -550,6 +557,80 @@
         focusTouchInputByIndex(currentIndex, 1);
     }
 
+    function setupDraggableKeypad() {
+        if (!touchKeypadEl) {
+            return;
+        }
+
+        const dragHandle = touchKeypadEl.querySelector('[data-touch-drag-handle]');
+        if (!dragHandle) {
+            return;
+        }
+
+        let dragging = false;
+        let startX = 0;
+        let startY = 0;
+        let initialLeft = 0;
+        let initialTop = 0;
+
+        function clamp(value, min, max) {
+            return Math.min(max, Math.max(min, value));
+        }
+
+        function onPointerMove(event) {
+            if (!dragging) {
+                return;
+            }
+
+            const nextLeft = initialLeft + (event.clientX - startX);
+            const nextTop = initialTop + (event.clientY - startY);
+            const maxLeft = Math.max(0, window.innerWidth - touchKeypadEl.offsetWidth);
+            const maxTop = Math.max(0, window.innerHeight - touchKeypadEl.offsetHeight);
+
+            touchKeypadEl.style.left = clamp(nextLeft, 0, maxLeft) + 'px';
+            touchKeypadEl.style.top = clamp(nextTop, 0, maxTop) + 'px';
+            touchKeypadEl.style.right = 'auto';
+            touchKeypadEl.style.bottom = 'auto';
+        }
+
+        function onPointerUp() {
+            if (!dragging) {
+                return;
+            }
+
+            dragging = false;
+            touchKeypadEl.classList.remove('dragging');
+            window.removeEventListener('pointermove', onPointerMove);
+            window.removeEventListener('pointerup', onPointerUp);
+            window.removeEventListener('pointercancel', onPointerUp);
+        }
+
+        dragHandle.addEventListener('pointerdown', function (event) {
+            if (event.button !== undefined && event.button !== 0) {
+                return;
+            }
+
+            event.preventDefault();
+            dragging = true;
+            touchKeypadEl.classList.add('dragging');
+
+            const rect = touchKeypadEl.getBoundingClientRect();
+            startX = event.clientX;
+            startY = event.clientY;
+            initialLeft = rect.left;
+            initialTop = rect.top;
+
+            touchKeypadEl.style.left = rect.left + 'px';
+            touchKeypadEl.style.top = rect.top + 'px';
+            touchKeypadEl.style.right = 'auto';
+            touchKeypadEl.style.bottom = 'auto';
+
+            window.addEventListener('pointermove', onPointerMove);
+            window.addEventListener('pointerup', onPointerUp);
+            window.addEventListener('pointercancel', onPointerUp);
+        });
+    }
+
     function syncTouchInputValue(input) {
         if (!input || !input.dataset.touchField) {
             return;
@@ -568,6 +649,13 @@
 
         const lineKey = input.dataset.lineKey;
         if (!lineKey || !cart.has(lineKey)) {
+            return;
+        }
+
+        const rawValue = String(input.value || '').trim();
+        if (fieldType === 'qty' && rawValue === '') {
+            cart.delete(lineKey);
+            renderCart();
             return;
         }
 
@@ -601,15 +689,21 @@
             return;
         }
 
+        const activeFieldType = activeInput.dataset.fieldType || '';
+
         if (action === 'tab' || action === 'next') {
             focusNextTouchInput();
             return;
         }
 
         if (action === 'clear') {
-            activeInput.value = '0';
+            activeInput.value = activeFieldType === 'qty' ? '' : '0';
         } else if (action === 'backspace') {
-            activeInput.value = activeInput.value.length > 1 ? activeInput.value.slice(0, -1) : '0';
+            if (activeInput.value.length > 1) {
+                activeInput.value = activeInput.value.slice(0, -1);
+            } else {
+                activeInput.value = activeFieldType === 'qty' ? '' : '0';
+            }
         } else if (action === 'digit') {
             const current = activeInput.value === '0' ? '' : activeInput.value;
             if (value === '.' && current.includes('.')) {
@@ -682,7 +776,6 @@
         if (!payload.items || payload.items.length === 0) {
             return 'Add at least one item before checkout.';
         }
-
         if (!payload.customer_id && payload.payment_method === 'pay_later') {
             return 'Walk in customer cannot use Pay Later.';
         }
@@ -706,7 +799,7 @@
             return;
         }
 
-        let queue = getQueue();
+        const queue = getQueue();
         if (queue.length === 0) {
             return;
         }
@@ -745,12 +838,22 @@
     function renderCart() {
         cartBody.innerHTML = '';
         hiddenItems.innerHTML = '';
-        let subtotal = 0; let discountTotal = 0; let payableBeforeHeader = 0; let index = 0;
+        let subtotal = 0;
+        let discountTotal = 0;
+        let payableBeforeHeader = 0;
+        let index = 0;
 
         if (cart.size === 0) {
             cartBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No products selected</td></tr>';
-            subTotalEl.textContent = money(0); discountTotalEl.textContent = money(0); totalPayableEl.textContent = money(0);
-            itemsCount.textContent = 'Items: 0'; checkoutBtn.disabled = true; return;
+            subTotalEl.textContent = money(0);
+            discountTotalEl.textContent = money(0);
+            totalPayableEl.textContent = money(0);
+            dueAmountEl.textContent = money(0);
+            returnAmountEl.textContent = money(0);
+            itemsCount.textContent = 'Items: 0';
+            checkoutBtn.disabled = true;
+            restoreTouchFocus();
+            return;
         }
 
         cart.forEach((item, key) => {
@@ -760,7 +863,10 @@
             if (discount > gross) { discount = gross; }
             item.discount = discount;
             const lineTotal = gross - discount;
-            subtotal += gross; discountTotal += discount; payableBeforeHeader += lineTotal;
+            subtotal += gross;
+            discountTotal += discount;
+            payableBeforeHeader += lineTotal;
+
             const priceFieldKey = 'price-' + key;
             const qtyFieldKey = 'qty-' + key;
             const discountFieldKey = 'discount-' + key;
@@ -768,9 +874,9 @@
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td><a href="javascript:void(0);" data-remove="${key}" class="me-2"><i class="ti ti-trash"></i></a>${item.name}<br><small class="text-muted">${item.unit}</small></td>
-                <td><input type="text" inputmode="numeric" autocomplete="off" min="1" max="${item.stock}" value="${item.quantity}" class="form-control line-qty" data-touch-input data-touch-field="${qtyFieldKey}" data-touch-label="${item.name} quantity" data-line-key="${key}" data-field-type="qty" data-allow-decimal="false"></td>
+                <td><input type="text" inputmode="numeric" autocomplete="off" value="${item.quantity}" class="form-control line-qty" data-touch-input data-touch-field="${qtyFieldKey}" data-touch-label="${item.name} quantity" data-line-key="${key}" data-field-type="qty" data-allow-decimal="false"></td>
                 <td><input type="text" inputmode="decimal" autocomplete="off" value="${Number(item.price).toFixed(2)}" class="form-control form-control-sm line-price" data-touch-input data-touch-field="${priceFieldKey}" data-touch-label="${item.name} price" data-line-key="${key}" data-field-type="price"></td>
-                <td><input type="text" inputmode="decimal" autocomplete="off" min="0" max="${gross.toFixed(2)}" value="${item.discount}" step="0.01" class="form-control form-control-sm line-discount" data-touch-input data-touch-field="${discountFieldKey}" data-touch-label="${item.name} discount" data-line-key="${key}" data-field-type="discount"></td>
+                <td><input type="text" inputmode="decimal" autocomplete="off" value="${item.discount}" class="form-control form-control-sm line-discount" data-touch-input data-touch-field="${discountFieldKey}" data-touch-label="${item.name} discount" data-line-key="${key}" data-field-type="discount"></td>
                 <td class="text-end">${money(lineTotal)}</td>`;
             cartBody.appendChild(row);
 
@@ -787,9 +893,8 @@
         const totalPayable = Math.max(0, payableBeforeHeader - extraDiscount);
         let paid = Number(paidAmountEl.value || 0);
         if (!Number.isFinite(paid) || paid < 0) { paid = 0; }
-        const paymentMethod = paymentMethodEl.value;
 
-        if (paymentMethod === 'pay_later') {
+        if (paymentMethodEl.value === 'pay_later') {
             paid = 0;
             paidAmountEl.value = '0.00';
             paidAmountEl.setAttribute('readonly', 'readonly');
@@ -812,60 +917,25 @@
     }
 
     [additionalDiscountEl, paidAmountEl].forEach((el) => {
-        el.addEventListener('focus', function () {
-            setActiveTouchInput(this);
-        });
-        el.addEventListener('click', function () {
-            setActiveTouchInput(this);
-        });
-        el.addEventListener('input', function () {
-            syncTouchInputValue(this);
-        });
+        el.addEventListener('focus', function () { setActiveTouchInput(this); });
+        el.addEventListener('click', function () { setActiveTouchInput(this); });
+        el.addEventListener('input', function () { syncTouchInputValue(this); });
     });
 
     cartBody.addEventListener('focusin', function (event) {
         const touchInput = event.target.closest('[data-touch-input]');
-        if (touchInput) {
-            setActiveTouchInput(touchInput);
-        }
+        if (touchInput) { setActiveTouchInput(touchInput); }
     });
 
     cartBody.addEventListener('click', function (event) {
         const touchInput = event.target.closest('[data-touch-input]');
-        if (touchInput) {
-            setActiveTouchInput(touchInput);
-        }
-    });
+        if (touchInput) { setActiveTouchInput(touchInput); }
 
-    paymentMethodEl.addEventListener('change', function () {
-        if (this.value === 'pay_later' && !customerSelectEl.value) {
-            alert('Select a customer first. Walk in customer cannot use Pay Later.');
-            this.value = 'cash';
+        const removeBtn = event.target.closest('[data-remove]');
+        if (removeBtn) {
+            cart.delete(removeBtn.dataset.remove);
+            renderCart();
         }
-        renderCart();
-    });
-
-    function addCardItem(cardEl) {
-        const id = Number(cardEl.dataset.id); const key = String(id); const stock = Number(cardEl.dataset.stock);
-        if (stock <= 0) { return; }
-        if (cart.has(key)) {
-            const existing = cart.get(key); if (existing.quantity < existing.stock) { existing.quantity += 1; }
-        } else {
-            cart.set(key, { id, name: cardEl.dataset.name, price: Number(cardEl.dataset.price), quantity: 1, stock, unit: cardEl.dataset.unit || 'pcs', discount: 0 });
-        }
-        renderCart();
-    }
-
-    document.querySelectorAll('.add-to-cart').forEach((card) => {
-        card.addEventListener('click', function () {
-            addCardItem(this);
-        });
-        card.addEventListener('keydown', function (event) {
-            if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                addCardItem(this);
-            }
-        });
     });
 
     cartBody.addEventListener('change', function (event) {
@@ -884,12 +954,47 @@
         }
     });
 
-    cartBody.addEventListener('click', function (event) {
-        const removeBtn = event.target.closest('[data-remove]');
-        if (removeBtn) {
-            cart.delete(removeBtn.dataset.remove);
-            renderCart();
+    paymentMethodEl.addEventListener('change', function () {
+        if (this.value === 'pay_later' && !customerSelectEl.value) {
+            alert('Select a customer first. Walk in customer cannot use Pay Later.');
+            this.value = 'cash';
         }
+        renderCart();
+    });
+
+    function addCardItem(cardEl) {
+        const id = Number(cardEl.dataset.id);
+        const key = String(id);
+        const stock = Number(cardEl.dataset.stock);
+        if (stock <= 0) { return; }
+
+        if (cart.has(key)) {
+            const existing = cart.get(key);
+            if (existing.quantity < existing.stock) {
+                existing.quantity += 1;
+            }
+        } else {
+            cart.set(key, {
+                id,
+                name: cardEl.dataset.name,
+                price: Number(cardEl.dataset.price),
+                quantity: 1,
+                stock,
+                unit: cardEl.dataset.unit || 'pcs',
+                discount: 0,
+            });
+        }
+        renderCart();
+    }
+
+    document.querySelectorAll('.add-to-cart').forEach((card) => {
+        card.addEventListener('click', function () { addCardItem(this); });
+        card.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                addCardItem(this);
+            }
+        });
     });
 
     if (touchKeypadEl) {
@@ -898,7 +1003,6 @@
             if (!button) {
                 return;
             }
-
             updateFieldFromKeypad(button.dataset.keypadAction, button.dataset.keypadValue || '');
         });
     }
@@ -907,7 +1011,9 @@
     if (productSearchEl) {
         productSearchEl.addEventListener('input', function () {
             const term = this.value.toLowerCase().trim();
-            document.querySelectorAll('.product-card').forEach((card) => { card.style.display = (card.dataset.name || '').includes(term) ? '' : 'none'; });
+            document.querySelectorAll('.product-card').forEach((card) => {
+                card.style.display = (card.dataset.name || '').includes(term) ? '' : 'none';
+            });
         });
     }
 
@@ -985,6 +1091,7 @@
     });
     window.addEventListener('offline', updateNetworkStatus);
 
+    setupDraggableKeypad();
     updateNetworkStatus();
     updatePendingBadge();
     if (navigator.onLine) {
@@ -993,3 +1100,4 @@
 })();
 </script>
 @endsection
+

@@ -14,6 +14,58 @@
 	<script src="{{asset('AdminAssets/js/theme-colorpicker.js')}}" type="ca0789102193bd8248eafb96-text/javascript"></script>
 	<script src="{{asset('AdminAssets/js/script.js')}}" type="ca0789102193bd8248eafb96-text/javascript"></script>
 
+<style>
+body.fullscreen-sidebar-hidden .sidebar {
+	display: none !important;
+}
+
+body.fullscreen-sidebar-hidden .page-wrapper {
+	margin-left: 0 !important;
+}
+
+body.fullscreen-sidebar-hidden .header-left {
+	display: none !important;
+}
+</style>
+
+<script>
+(function () {
+	const body = document.body;
+	const fullscreenBtn = document.getElementById('btnFullscreen');
+
+	if (!fullscreenBtn || !body) {
+		return;
+	}
+
+	function applyFullscreenLayout(isFullscreen) {
+		body.classList.toggle('fullscreen-sidebar-hidden', Boolean(isFullscreen));
+	}
+
+	function isInFullscreen() {
+		return Boolean(
+			document.fullscreenElement ||
+			document.webkitFullscreenElement ||
+			document.mozFullScreenElement ||
+			document.msFullscreenElement
+		);
+	}
+
+	['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach((eventName) => {
+		document.addEventListener(eventName, function () {
+			applyFullscreenLayout(isInFullscreen());
+		});
+	});
+
+	fullscreenBtn.addEventListener('click', function () {
+		setTimeout(function () {
+			applyFullscreenLayout(isInFullscreen());
+		}, 120);
+	});
+
+	applyFullscreenLayout(isInFullscreen());
+})();
+</script>
+
 
 <script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="ca0789102193bd8248eafb96-|49" defer></script></body>
 
