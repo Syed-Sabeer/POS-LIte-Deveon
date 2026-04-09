@@ -384,11 +384,11 @@
         <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value="1">1</button>
         <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value="2">2</button>
         <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value="3">3</button>
-        <button type="button" class="touch-keypad__button  data-keypad-action="next">Next</button>
+        <button type="button" class="touch-keypad__button" data-keypad-action="next">Next</button>
 
         <button type="button" class="touch-keypad__button touch-keypad__button--wide" data-keypad-action="digit" data-keypad-value="0">0</button>
         <button type="button" class="touch-keypad__button" data-keypad-action="digit" data-keypad-value=".">.</button>
-        <button type="button" class="touch-keypad__button touch-keypad__button--accent"  data-keypad-action="submit">-></button>
+        <button type="button" class="touch-keypad__button touch-keypad__button--accent" data-keypad-action="submit">-></button>
     </div>
 </div>
 
@@ -1152,8 +1152,8 @@
 
         try {
             const result = await submitOnlineCheckout(payload);
-            resetCheckoutForm();
-            alert(result.message || 'Checkout completed successfully.');
+            const receiptUrl = '{{ url('pos/orders') }}/' + result.order_id;
+            window.location.href = receiptUrl;
         } catch (error) {
             alert(error.message || 'Checkout failed. Try again.');
             checkoutBtn.disabled = cart.size === 0;

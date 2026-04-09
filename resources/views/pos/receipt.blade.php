@@ -25,6 +25,7 @@
     <div class="card-body">
         <div class="text-center mb-4">
             <h3 class="mb-1">Sales Receipt</h3>
+            <p class="mb-0"><strong>Sale No:</strong> {{ $order->order_number }}</p>
             <p class="mb-0">Order: {{ $order->order_number }}</p>
             <p class="mb-0">Date: {{ $order->created_at->format('Y-m-d H:i:s') }}</p>
         </div>
