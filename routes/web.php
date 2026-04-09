@@ -111,6 +111,9 @@ Route::middleware(['auth', 'subscription.active'])->group(function () {
     Route::post('pos/checkout', [PosController::class, 'checkout'])->middleware('permission:pos checkout')->name('pos.checkout');
     Route::post('pos/checkout-sync', [PosController::class, 'checkoutSync'])->middleware('permission:pos checkout')->name('pos.checkout.sync');
     Route::get('pos/orders', [PosController::class, 'orders'])->middleware('permission:pos orders')->name('pos.orders');
+    Route::get('pos/orders/{order}/edit', [PosController::class, 'edit'])->middleware('permission:pos orders')->name('pos.orders.edit');
+    Route::put('pos/orders/{order}', [PosController::class, 'update'])->middleware('permission:pos orders')->name('pos.orders.update');
+    Route::delete('pos/orders/{order}', [PosController::class, 'destroy'])->middleware('permission:pos orders')->name('pos.orders.destroy');
     Route::get('pos/orders/{order}', [PosController::class, 'show'])->middleware('permission:pos orders')->name('pos.orders.show');
 
     Route::get('customers', [CustomerController::class, 'index'])->middleware('permission:manage customers')->name('customers.index');

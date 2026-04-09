@@ -13,6 +13,12 @@
     <div class="page-btn mt-0 d-flex gap-2">
         <a href="{{ route('pos.index') }}" class="btn btn-secondary"><i class="ti ti-device-laptop me-1"></i>New Sale</a>
         <a href="{{ route('pos.orders') }}" class="btn btn-info"><i class="ti ti-list me-1"></i>Order History</a>
+        <a href="{{ route('pos.orders.edit', $order) }}" class="btn btn-warning"><i class="ti ti-refresh me-1"></i>Refund Sale</a>
+        <form action="{{ route('pos.orders.destroy', $order) }}" method="POST" onsubmit="return confirm('Cancel this sale and delete the record?')">
+            @csrf
+            @method('DELETE')
+            <button type="submit" class="btn btn-danger"><i class="ti ti-trash me-1"></i>Cancel Sale</button>
+        </form>
         <button type="button" onclick="window.print()" class="btn btn-primary"><i class="ti ti-printer me-1"></i>Print</button>
     </div>
 </div>

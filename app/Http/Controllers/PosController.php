@@ -9,7 +9,6 @@ use App\Models\Customer;
 use App\Models\PosOrder;
 use App\Models\Product;
 use App\Services\Accounting\PostingService;
-use App\Support\FinanceNumber;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -132,7 +131,7 @@ class PosController extends Controller
                 : ($paidAmount > 0 ? PosOrder::PAYMENT_STATUS_PARTIAL : PosOrder::PAYMENT_STATUS_UNPAID);
 
             $order = PosOrder::create([
-                'order_number' => FinanceNumber::next('SINV', PosOrder::class, 'order_number'),
+                'order_number' => $this->generateRandomOrderNumber(),
                 'user_id' => $userId,
                 'customer_id' => $customer?->id,
                 'customer_name' => $customer?->full_name ?: ($validated['customer_name'] ?: 'Walk in Customer'),
@@ -191,6 +190,161 @@ class PosController extends Controller
         $order->load('customer', 'items.product');
 
         return view('pos.receipt', compact('order'));
+    }
+
+    public function edit(PosOrder $order)
+    {
+        $order->load('items.product', 'customer');
+        $customers = Customer::orderBy('full_name')->get();
+
+        return view('pos.edit', compact('order', 'customers'));
+    }
+
+    public function update(Request $request, PosOrder $order)
+    {
+        $validated = $request->validate([
+            'customer_id' => ['nullable', 'integer', 'exists:customers,id'],
+            'customer_name' => ['nullable', 'string', 'max:255'],
+            'payment_method' => ['required', 'in:cash,cheque,pay_later'],
+            'invoice_date' => ['required', 'date'],
+            'additional_discount' => ['nullable', 'numeric', 'min:0'],
+            'paid_amount' => ['required', 'numeric', 'min:0'],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
+            'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'items.*.unit_price' => ['required', 'numeric', 'min:0'],
+            'items.*.discount' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        DB::transaction(function () use ($validated, $request, $order) {
+            $order->load('items');
+
+            foreach ($order->items as $oldItem) {
+                Product::whereKey($oldItem->product_id)->increment('quantity', (int) $oldItem->quantity);
+            }
+
+            $grossSubtotal = 0;
+            $lineDiscountTotal = 0;
+            $lines = [];
+
+            foreach ($validated['items'] as $item) {
+                $product = Product::lockForUpdate()->findOrFail($item['product_id']);
+                $quantity = (int) $item['quantity'];
+                $unitPrice = max(0, (float) $item['unit_price']);
+
+                $grossLine = $unitPrice * $quantity;
+                $discount = isset($item['discount']) ? (float) $item['discount'] : 0;
+                if ($discount > $grossLine) {
+                    $discount = $grossLine;
+                }
+
+                $lineTotal = $grossLine - $discount;
+                $grossSubtotal += $grossLine;
+                $lineDiscountTotal += $discount;
+
+                $lines[] = [
+                    'product_id' => $product->id,
+                    'product_name' => $product->name,
+                    'unit_price' => $unitPrice,
+                    'cost_price' => (float) $product->cost_price,
+                    'quantity' => $quantity,
+                    'discount_amount' => $discount,
+                    'line_total' => $lineTotal,
+                ];
+
+                $product->decrement('quantity', $quantity);
+            }
+
+            $customer = null;
+            if (! empty($validated['customer_id'])) {
+                $customer = Customer::find($validated['customer_id']);
+            }
+
+            $additionalDiscount = (float) ($validated['additional_discount'] ?? 0);
+            $taxAmount = 0;
+            $discountAmount = min($grossSubtotal, $lineDiscountTotal + $additionalDiscount);
+            $total = max(0, ($grossSubtotal - $discountAmount) + $taxAmount);
+
+            $receivedAmount = max(0, (float) ($validated['paid_amount'] ?? 0));
+            $paymentMethod = $validated['payment_method'];
+
+            if (empty($customer) && $paymentMethod === 'pay_later') {
+                throw ValidationException::withMessages([
+                    'payment_method' => 'Walk in customer cannot use Pay Later.',
+                ]);
+            }
+
+            if ($paymentMethod === 'pay_later') {
+                $receivedAmount = 0;
+                $paidAmount = 0;
+                $changeAmount = 0;
+                $dueAmount = $total;
+            } else {
+                $paidAmount = min($receivedAmount, $total);
+                $changeAmount = max(0, $receivedAmount - $total);
+                $dueAmount = max(0, $total - $paidAmount);
+            }
+
+            if ($dueAmount > 0 && empty($customer)) {
+                throw ValidationException::withMessages([
+                    'paid_amount' => 'Walk in customer must pay full amount. Select a customer to keep pending amount.',
+                ]);
+            }
+
+            $paymentStatus = $dueAmount <= 0
+                ? PosOrder::PAYMENT_STATUS_PAID
+                : ($paidAmount > 0 ? PosOrder::PAYMENT_STATUS_PARTIAL : PosOrder::PAYMENT_STATUS_UNPAID);
+
+            $order->update([
+                'user_id' => $request->user()?->id,
+                'customer_id' => $customer?->id,
+                'customer_name' => $customer?->full_name ?: ($validated['customer_name'] ?: 'Walk in Customer'),
+                'payment_method' => $paymentMethod,
+                'invoice_date' => $validated['invoice_date'],
+                'subtotal' => $grossSubtotal,
+                'discount_amount' => $discountAmount,
+                'tax_amount' => $taxAmount,
+                'total' => $total,
+                'total_amount' => $total,
+                'paid_amount' => $paidAmount,
+                'received_amount' => $receivedAmount,
+                'change_amount' => $changeAmount,
+                'due_amount' => $dueAmount,
+                'payment_status' => $paymentStatus,
+                'status' => 'completed',
+            ]);
+
+            $order->items()->delete();
+            foreach ($lines as $line) {
+                $order->items()->create($line);
+            }
+        });
+
+        return redirect()->route('pos.orders.show', $order)->with('success', 'Sale updated successfully.');
+    }
+
+    public function destroy(PosOrder $order)
+    {
+        DB::transaction(function () use ($order) {
+            $order->load('items');
+
+            foreach ($order->items as $item) {
+                Product::whereKey($item->product_id)->increment('quantity', (int) $item->quantity);
+            }
+
+            $order->delete();
+        });
+
+        return redirect()->route('pos.orders')->with('success', 'Sale cancelled and deleted successfully.');
+    }
+
+    private function generateRandomOrderNumber(): string
+    {
+        do {
+            $number = (string) random_int(1000000, 9999999);
+        } while (PosOrder::where('order_number', $number)->exists());
+
+        return $number;
     }
 
     public function reports()

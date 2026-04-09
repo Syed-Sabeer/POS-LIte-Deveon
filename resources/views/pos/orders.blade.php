@@ -50,7 +50,15 @@
                             <td>PKR {{ number_format($order->total, 2) }}</td>
                             <td>{{ $order->created_at->format('Y-m-d H:i') }}</td>
                             <td>
-                                <a href="{{ route('pos.orders.show', $order) }}" class="btn btn-sm btn-info">View Receipt</a>
+                                <div class="d-flex gap-1 flex-wrap">
+                                    <a href="{{ route('pos.orders.show', $order) }}" class="btn btn-sm btn-info">Receipt</a>
+                                    <a href="{{ route('pos.orders.edit', $order) }}" class="btn btn-sm btn-warning">Refund</a>
+                                    <form action="{{ route('pos.orders.destroy', $order) }}" method="POST" onsubmit="return confirm('Cancel this sale and delete the record?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-danger">Cancel</button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                     @empty
