@@ -827,6 +827,7 @@
         cart.forEach((item) => {
             items.push({
                 product_id: item.id,
+                product_name: item.name,
                 quantity: item.quantity,
                 unit_price: Number(item.price || 0),
                 discount: Number(item.discount || 0),
@@ -877,6 +878,266 @@
         }
 
         return null;
+    }
+
+    function removeQueuedOrderByLocalId(localId) {
+        const queue = getQueue();
+        const remaining = queue.filter((item) => String(item.local_id) !== String(localId));
+        saveQueue(remaining);
+        return remaining.length !== queue.length;
+    }
+
+    function getCustomerLabelFromPayload(payload) {
+        if (!payload) {
+            return 'Walk in Customer';
+        }
+
+        if (!payload.customer_id) {
+            return payload.customer_name || 'Walk in Customer';
+        }
+
+        const option = (customerOptions || []).find((item) => String(item.value) === String(payload.customer_id));
+        return option ? option.label : 'Customer #' + payload.customer_id;
+    }
+
+    function calculatePayloadSummary(payload) {
+        const subtotal = (payload.items || []).reduce((sum, line) => {
+            return sum + (Number(line.unit_price || 0) * Number(line.quantity || 0));
+        }, 0);
+
+        const lineDiscount = (payload.items || []).reduce((sum, line) => {
+            const gross = Number(line.unit_price || 0) * Number(line.quantity || 0);
+            return sum + Math.min(Math.max(0, Number(line.discount || 0)), gross);
+        }, 0);
+
+        const extraDiscount = Math.max(0, Number(payload.additional_discount || 0));
+        const total = Math.max(0, subtotal - lineDiscount - extraDiscount);
+        const paidAmount = Math.max(0, Number(payload.paid_amount || 0));
+        const paid = payload.payment_method === 'pay_later' ? 0 : Math.min(total, paidAmount);
+        const due = Math.max(0, total - paid);
+        const returned = payload.payment_method === 'pay_later' ? 0 : Math.max(0, paidAmount - total);
+
+        return {
+            subtotal,
+            lineDiscount,
+            extraDiscount,
+            total,
+            paid,
+            due,
+            returned,
+        };
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function loadPayloadIntoCart(payload) {
+        if (!payload || !Array.isArray(payload.items)) {
+            return;
+        }
+
+        const productCardMap = new Map();
+        document.querySelectorAll('.add-to-cart').forEach((card) => {
+            productCardMap.set(String(card.dataset.id), card);
+        });
+
+        cart.clear();
+        payload.items.forEach((line) => {
+            const key = String(line.product_id);
+            const card = productCardMap.get(key);
+
+            cart.set(key, {
+                id: Number(line.product_id),
+                name: line.product_name || (card ? card.dataset.name : ('Product #' + line.product_id)),
+                price: Math.max(0, Math.round(Number(line.unit_price || 0))),
+                quantity: Math.max(1, Math.round(Number(line.quantity || 1))),
+                stock: Number(card ? (card.dataset.stock || 0) : 0),
+                unit: card ? (card.dataset.unit || 'pcs') : 'pcs',
+                discount: Math.max(0, Math.round(Number(line.discount || 0))),
+            });
+        });
+
+        customerSelectEl.value = payload.customer_id ? String(payload.customer_id) : '';
+        paymentMethodEl.value = payload.payment_method || 'cash';
+        additionalDiscountEl.value = String(Math.max(0, Math.round(Number(payload.additional_discount || 0))));
+        paidAmountEl.value = String(Math.max(0, Math.round(Number(payload.paid_amount || 0))));
+
+        const customerNameInput = checkoutForm.querySelector('input[name="customer_name"]');
+        if (customerNameInput) {
+            customerNameInput.value = payload.customer_name || 'Walk in Customer';
+        }
+
+        renderCart();
+    }
+
+    function printOfflineReceipt(localOrder) {
+        const payload = localOrder?.payload || {};
+        const summary = calculatePayloadSummary(payload);
+        const customerName = getCustomerLabelFromPayload(payload);
+        const orderNumber = 'LOCAL-' + String(localOrder.local_id);
+
+        const itemRows = (payload.items || []).map((line) => {
+            const qty = Number(line.quantity || 0);
+            const price = Number(line.unit_price || 0);
+            const discount = Number(line.discount || 0);
+            const lineTotal = Math.max(0, (qty * price) - Math.min(discount, qty * price));
+            return '<tr>' +
+                '<td style="padding:6px;border-bottom:1px solid #ddd;">' + escapeHtml(line.product_name || ('Product #' + line.product_id)) + '</td>' +
+                '<td style="padding:6px;border-bottom:1px solid #ddd;text-align:center;">' + qty + '</td>' +
+                '<td style="padding:6px;border-bottom:1px solid #ddd;text-align:right;">' + Number(price).toFixed(0) + '</td>' +
+                '<td style="padding:6px;border-bottom:1px solid #ddd;text-align:right;">' + Number(discount).toFixed(0) + '</td>' +
+                '<td style="padding:6px;border-bottom:1px solid #ddd;text-align:right;">' + Number(lineTotal).toFixed(0) + '</td>' +
+            '</tr>';
+        }).join('');
+
+        const html = '<!doctype html><html><head><meta charset="utf-8"><title>Offline Receipt</title></head><body style="font-family:Arial,sans-serif;padding:18px;">' +
+            '<h2 style="margin:0 0 8px;">Offline Sales Receipt</h2>' +
+            '<div style="margin-bottom:12px;">' +
+            '<div><strong>Order:</strong> ' + escapeHtml(orderNumber) + '</div>' +
+            '<div><strong>Customer:</strong> ' + escapeHtml(customerName) + '</div>' +
+            '<div><strong>Payment:</strong> ' + escapeHtml(String(payload.payment_method || 'cash').toUpperCase()) + '</div>' +
+            '<div><strong>Status:</strong> Saved locally (Pending Sync)</div>' +
+            '</div>' +
+            '<table style="width:100%;border-collapse:collapse;font-size:12px;">' +
+            '<thead><tr><th style="text-align:left;padding:6px;border-bottom:1px solid #222;">Item</th><th style="padding:6px;border-bottom:1px solid #222;">Qty</th><th style="padding:6px;border-bottom:1px solid #222;text-align:right;">Price</th><th style="padding:6px;border-bottom:1px solid #222;text-align:right;">Disc</th><th style="padding:6px;border-bottom:1px solid #222;text-align:right;">Total</th></tr></thead>' +
+            '<tbody>' + itemRows + '</tbody></table>' +
+            '<div style="margin-top:12px;font-size:13px;">' +
+            '<div><strong>Sub Total:</strong> PKR ' + summary.subtotal.toFixed(0) + '</div>' +
+            '<div><strong>Discount:</strong> PKR ' + (summary.lineDiscount + summary.extraDiscount).toFixed(0) + '</div>' +
+            '<div><strong>Total:</strong> PKR ' + summary.total.toFixed(0) + '</div>' +
+            '<div><strong>Paid:</strong> PKR ' + summary.paid.toFixed(0) + '</div>' +
+            '<div><strong>Due:</strong> PKR ' + summary.due.toFixed(0) + '</div>' +
+            '</div>' +
+            '</body></html>';
+
+        const popup = window.open('', '_blank', 'width=420,height=700');
+        if (!popup) {
+            alert('Unable to open print window. Allow popups and try again.');
+            return;
+        }
+
+        popup.document.open();
+        popup.document.write(html);
+        popup.document.close();
+        popup.focus();
+        popup.print();
+    }
+
+    function showOfflineReceipt(localOrder) {
+        if (!localOrder || !localOrder.payload) {
+            return;
+        }
+
+        const payload = localOrder.payload;
+        const summary = calculatePayloadSummary(payload);
+        const customerName = getCustomerLabelFromPayload(payload);
+        const orderNumber = 'LOCAL-' + String(localOrder.local_id);
+
+        const lines = (payload.items || []).map((line) => {
+            const qty = Number(line.quantity || 0);
+            const price = Number(line.unit_price || 0);
+            const discount = Number(line.discount || 0);
+            const lineTotal = Math.max(0, (qty * price) - Math.min(discount, qty * price));
+            return '<tr>' +
+                '<td>' + escapeHtml(line.product_name || ('Product #' + line.product_id)) + '</td>' +
+                '<td class="text-center">' + qty + '</td>' +
+                '<td class="text-end">PKR ' + price.toFixed(0) + '</td>' +
+                '<td class="text-end">PKR ' + discount.toFixed(0) + '</td>' +
+                '<td class="text-end">PKR ' + lineTotal.toFixed(0) + '</td>' +
+            '</tr>';
+        }).join('');
+
+        const message = '' +
+            '<div class="alert alert-warning py-2 mb-3">Order saved locally. It will sync automatically when internet is back.</div>' +
+            '<p class="mb-1"><strong>Order:</strong> ' + escapeHtml(orderNumber) + '</p>' +
+            '<p class="mb-1"><strong>Customer:</strong> ' + escapeHtml(customerName) + '</p>' +
+            '<p class="mb-2"><strong>Payment:</strong> ' + escapeHtml(String(payload.payment_method || 'cash').toUpperCase()) + '</p>' +
+            '<div class="table-responsive"><table class="table table-sm table-bordered mb-2"><thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Disc</th><th>Total</th></tr></thead><tbody>' + lines + '</tbody></table></div>' +
+            '<div class="d-flex justify-content-between"><span>Sub Total</span><strong>PKR ' + summary.subtotal.toFixed(0) + '</strong></div>' +
+            '<div class="d-flex justify-content-between"><span>Discount</span><strong>PKR ' + (summary.lineDiscount + summary.extraDiscount).toFixed(0) + '</strong></div>' +
+            '<div class="d-flex justify-content-between"><span>Total</span><strong>PKR ' + summary.total.toFixed(0) + '</strong></div>' +
+            '<div class="d-flex justify-content-between"><span>Due</span><strong>PKR ' + summary.due.toFixed(0) + '</strong></div>';
+
+        let modalEl = document.getElementById('offlineReceiptModal');
+        if (!modalEl) {
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = '' +
+                '<div class="modal fade" id="offlineReceiptModal" tabindex="-1" aria-hidden="true">' +
+                    '<div class="modal-dialog modal-lg modal-dialog-centered">' +
+                        '<div class="modal-content">' +
+                            '<div class="modal-header">' +
+                                '<h5 class="modal-title">Offline Receipt</h5>' +
+                                '<button type="button" class="btn-close" data-bs-dismiss="modal"></button>' +
+                            '</div>' +
+                            '<div class="modal-body" id="offlineReceiptBody"></div>' +
+                            '<div class="modal-footer">' +
+                                '<button type="button" class="btn btn-primary" id="offlineReceiptPrintBtn">Print</button>' +
+                                '<button type="button" class="btn btn-warning" id="offlineReceiptRefundBtn">Refund/Edit</button>' +
+                                '<button type="button" class="btn btn-danger" id="offlineReceiptCancelBtn">Cancel Sale</button>' +
+                                '<button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+            document.body.appendChild(wrapper.firstElementChild);
+            modalEl = document.getElementById('offlineReceiptModal');
+        }
+
+        const modalBody = document.getElementById('offlineReceiptBody');
+        if (modalBody) {
+            modalBody.innerHTML = message;
+        }
+
+        const printBtn = document.getElementById('offlineReceiptPrintBtn');
+        const refundBtn = document.getElementById('offlineReceiptRefundBtn');
+        const cancelBtn = document.getElementById('offlineReceiptCancelBtn');
+
+        if (printBtn) {
+            printBtn.onclick = function () {
+                printOfflineReceipt(localOrder);
+            };
+        }
+
+        if (refundBtn) {
+            refundBtn.onclick = function () {
+                const removed = removeQueuedOrderByLocalId(localOrder.local_id);
+                if (!removed) {
+                    alert('This local order is not available for refund/edit.');
+                    return;
+                }
+
+                loadPayloadIntoCart(localOrder.payload);
+                const modal = window.bootstrap?.Modal?.getOrCreateInstance(modalEl);
+                if (modal) {
+                    modal.hide();
+                }
+            };
+        }
+
+        if (cancelBtn) {
+            cancelBtn.onclick = function () {
+                if (!confirm('Cancel this local sale and delete it from pending sync?')) {
+                    return;
+                }
+
+                removeQueuedOrderByLocalId(localOrder.local_id);
+                const modal = window.bootstrap?.Modal?.getOrCreateInstance(modalEl);
+                if (modal) {
+                    modal.hide();
+                }
+            };
+        }
+
+        const modal = window.bootstrap?.Modal?.getOrCreateInstance(modalEl);
+        if (modal) {
+            modal.show();
+        }
     }
 
     async function syncOfflineOrders() {
@@ -1210,14 +1471,15 @@
 
         if (!navigator.onLine) {
             const queue = getQueue();
-            queue.push({
+            const localOrder = {
                 local_id: Date.now(),
                 payload,
                 queued_at: new Date().toISOString(),
-            });
+            };
+            queue.push(localOrder);
             saveQueue(queue);
             resetCheckoutForm();
-            alert('Internet is offline. Order saved locally and will sync automatically when connection returns.');
+            showOfflineReceipt(localOrder);
             return;
         }
 

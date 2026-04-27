@@ -1,13 +1,13 @@
 <!-- Sidebar -->
 <div class="sidebar" id="sidebar">
     <div class="sidebar-logo">
-        <a href="{{ route('home') }}" class="logo logo-normal">
+        <a href="{{ route(config('accounting_v2.enabled') ? 'v2.dashboard' : 'accounting.sales') }}" class="logo logo-normal">
             <img src="{{ asset('AdminAssets/img/ddb.png') }}" alt="Img">
         </a>
-        <a href="{{ route('home') }}" class="logo logo-white">
+        <a href="{{ route(config('accounting_v2.enabled') ? 'v2.dashboard' : 'accounting.sales') }}" class="logo logo-white">
             <img src="{{ asset('AdminAssets/img/ddb.png') }}" alt="Img">
         </a>
-        <a href="{{ route('home') }}" class="logo-small">
+        <a href="{{ route(config('accounting_v2.enabled') ? 'v2.dashboard' : 'accounting.sales') }}" class="logo-small">
             <img src="{{ asset('AdminAssets/img/ddb.png') }}" alt="Img">
         </a>
         <a id="toggle_btn" href="javascript:void(0);">
@@ -18,72 +18,54 @@
     <div class="sidebar-inner slimscroll">
         <div id="sidebar-menu" class="sidebar-menu">
             <ul>
-                @can('view dashboard')
-                    <li class="submenu-open">
-                        <h6 class="submenu-hdr">Main</h6>
-                        <ul>
-                            <li><a href="{{ route('home') }}"><i class="ti ti-layout-grid fs-16 me-2"></i><span>Dashboard</span></a></li>
-                            <li><a href="{{ route('billing.index') }}"><i class="ti ti-credit-card fs-16 me-2"></i><span>Organization Billing</span></a></li>
-                        </ul>
-                    </li>
-                @endcan
+                @if(config('accounting_v2.enabled'))
+                    @canany([
+                        'v2 dashboard',
+                        'v2 purchase book',
+                        'v2 sale bill book',
+                        'v2 receipt vouchers',
+                        'v2 payment vouchers',
+                        'v2 journal vouchers',
+                        'v2 accounts manager',
+                        'v2 account details manager',
+                        'v2 stock manager',
+                        'v2 stock ledger',
+                        'v2 trial balance',
+                        'v2 add remove users'
+                    ])
+                        <li class="submenu-open">
+                            <h6 class="submenu-hdr">Accounting V2</h6>
+                            <ul>
+                                @can('v2 dashboard')<li><a href="{{ route('v2.dashboard') }}" class="{{ request()->routeIs('v2.dashboard') ? 'active' : '' }}"><i class="ti ti-layout-grid fs-16 me-2"></i><span>Program Manager</span></a></li>@endcan
+                                @can('v2 purchase book')<li><a href="{{ route('v2.purchase.index') }}" class="{{ request()->routeIs('v2.purchase.*') ? 'active' : '' }}"><i class="ti ti-file-invoice fs-16 me-2"></i><span>Purchase Invoices</span></a></li>@endcan
+                                @can('v2 sale bill book')<li><a href="{{ route('v2.sales.index') }}" class="{{ request()->routeIs('v2.sales.*') ? 'active' : '' }}"><i class="ti ti-receipt fs-16 me-2"></i><span>Sale Invoices</span></a></li>@endcan
+                                @can('v2 receipt vouchers')<li><a href="{{ route('v2.receipts.index') }}" class="{{ request()->routeIs('v2.receipts.*') ? 'active' : '' }}"><i class="ti ti-cash fs-16 me-2"></i><span>Receipts</span></a></li>@endcan
+                                @can('v2 payment vouchers')<li><a href="{{ route('v2.payments.index') }}" class="{{ request()->routeIs('v2.payments.*') ? 'active' : '' }}"><i class="ti ti-cash-banknote fs-16 me-2"></i><span>Payments</span></a></li>@endcan
+                                @can('v2 journal vouchers')<li><a href="{{ route('v2.journal.index') }}" class="{{ request()->routeIs('v2.journal.*') ? 'active' : '' }}"><i class="ti ti-notebook fs-16 me-2"></i><span>Journal Vouchers</span></a></li>@endcan
+                                @can('v2 accounts manager')<li><a href="{{ route('v2.accounts.index') }}" class="{{ request()->routeIs('v2.accounts.*') ? 'active' : '' }}"><i class="ti ti-users fs-16 me-2"></i><span>Accounts Manager</span></a></li>@endcan
+                                @can('v2 account details manager')<li><a href="{{ route('v2.account-details.index') }}" class="{{ request()->routeIs('v2.account-details.*') ? 'active' : '' }}"><i class="ti ti-address-book fs-16 me-2"></i><span>Account Details</span></a></li>@endcan
+                                @can('v2 stock manager')<li><a href="{{ route('v2.items.index') }}" class="{{ request()->routeIs('v2.items.*') ? 'active' : '' }}"><i class="ti ti-package fs-16 me-2"></i><span>Stock Manager</span></a></li>@endcan
+                                @can('v2 category manager')<li><a href="{{ route('v2.categories.index') }}" class="{{ request()->routeIs('v2.categories.*') ? 'active' : '' }}"><i class="ti ti-category fs-16 me-2"></i><span>Category Manager</span></a></li>@endcan
+                                @can('v2 brand manager')<li><a href="{{ route('v2.brands.index') }}" class="{{ request()->routeIs('v2.brands.*') ? 'active' : '' }}"><i class="ti ti-tag fs-16 me-2"></i><span>Brand Manager</span></a></li>@endcan
+                                @can('v2 stock ledger')<li><a href="{{ route('v2.stock-ledger.index') }}" class="{{ request()->routeIs('v2.stock-ledger.*') ? 'active' : '' }}"><i class="ti ti-stack fs-16 me-2"></i><span>Stock Ledger</span></a></li>@endcan
+                                @canany(['v2 trial balance', 'v2 trial balance aging', 'v2 income statement', 'v2 balance sheet'])<li><a href="{{ route('v2.reports.index') }}" class="{{ request()->routeIs('v2.reports.*') ? 'active' : '' }}"><i class="ti ti-printer fs-16 me-2"></i><span>Reports</span></a></li>@endcanany
+                                @can('v2 add remove users')<li><a href="{{ route('v2.users.index') }}" class="{{ request()->routeIs('v2.users.*') ? 'active' : '' }}"><i class="ti ti-user-cog fs-16 me-2"></i><span>User Rights</span></a></li>@endcan
+                            </ul>
+                        </li>
+                    @endcanany
+                @endif
 
-                @canany(['manage products', 'manage stock', 'manage purchases', 'manage suppliers'])
-                    <li class="submenu-open">
-                        <h6 class="submenu-hdr">Inventory & Purchase</h6>
-                        <ul>
-                            @can('manage products')<li><a href="{{ route('admin.products.index') }}"><i class="ti ti-package fs-16 me-2"></i><span>Products</span></a></li>@endcan
-                            @can('manage stock')<li><a href="{{ route('stock.index') }}"><i class="ti ti-stack-2 fs-16 me-2"></i><span>Stock Maintenance</span></a></li>@endcan
-                            {{-- @can('manage suppliers')<li><a href="{{ route('suppliers.index') }}"><i class="ti ti-truck fs-16 me-2"></i><span>Suppliers</span></a></li>@endcan
-                            @can('manage purchases')<li><a href="{{ route('purchases.index') }}"><i class="ti ti-file-invoice fs-16 me-2"></i><span>Purchases</span></a></li>@endcan --}}
-                        </ul>
-                    </li>
-                @endcanany
-
-                @canany(['pos checkout', 'pos orders', 'manage customers', 'manage customer payments', 'manage supplier payments'])
-                    <li class="submenu-open">
-                        <h6 class="submenu-hdr">POS & Payments</h6>
-                        <ul>
-                            @can('pos checkout')<li><a href="{{ route('pos.index') }}"><i class="ti ti-device-laptop fs-16 me-2"></i><span>POS Checkout</span></a></li>@endcan
-                            @can('pos orders')<li><a href="{{ route('pos.orders') }}"><i class="ti ti-receipt fs-16 me-2"></i><span>POS Orders</span></a></li>@endcan
-                            @can('manage customers')<li><a href="{{ route('customers.index') }}"><i class="ti ti-users fs-16 me-2"></i><span>Customers</span></a></li>@endcan
-                            @can('manage customer payments')<li><a href="{{ route('customer-payable.index') }}"><i class="ti ti-wallet fs-16 me-2"></i><span>Customer Payable</span></a></li>@endcan
-                            @can('manage customer payments')<li><a href="{{ route('customer-payments.index') }}"><i class="ti ti-cash fs-16 me-2"></i><span>Payments Received</span></a></li>@endcan
-                            {{-- @can('manage supplier payments')<li><a href="{{ route('supplier-payments.index') }}"><i class="ti ti-cash-banknote fs-16 me-2"></i><span>Supplier Payments</span></a></li>@endcan --}}
-                        </ul>
-                    </li>
-                @endcanany
-
-                @canany(['view receivables report', 'view payables report', 'view sales reports'])
-                    <li class="submenu-open">
-                        <h6 class="submenu-hdr">Reports</h6>
-                        <ul>
-                            @can('view sales reports')<li><a href="{{ route('reports.sales') }}"><i class="ti ti-chart-line fs-16 me-2"></i><span>Sales Reports</span></a></li>@endcan
-                            {{-- @can('view receivables report')<li><a href="{{ route('reports.receivables') }}"><i class="ti ti-report-money fs-16 me-2"></i><span>Receivables Report</span></a></li>@endcan
-                            @can('view payables report')<li><a href="{{ route('reports.payables') }}"><i class="ti ti-report-search fs-16 me-2"></i><span>Payables Report</span></a></li>@endcan --}}
-                        </ul>
-                    </li>
-                @endcanany
-
-                @canany(['view customer ledger', 'view supplier ledger', 'view journal entries', 'manage chart of accounts', 'view balance sheet', 'manage receivables', 'manage payables'])
+                @if(config('accounting_v2.show_old_accounting_menu'))
                     <li class="submenu-open">
                         <h6 class="submenu-hdr">Accounting</h6>
                         <ul>
-                            {{-- @canany(['manage receivables', 'manage customer payments'])<li><a href="{{ route('customer-payments.index') }}"><i class="ti ti-receipt-2 fs-16 me-2"></i><span>Receivables</span></a></li>@endcanany
-                            @canany(['manage payables', 'manage supplier payments'])<li><a href="{{ route('supplier-payments.index') }}"><i class="ti ti-file-dollar fs-16 me-2"></i><span>Payables</span></a></li>@endcanany --}}
-                            @can('view customer ledger')<li><a href="{{ route('ledgers.customers') }}"><i class="ti ti-book-2 fs-16 me-2"></i><span>Customer Ledger</span></a></li>@endcan
-                            {{-- @can('view supplier ledger')<li><a href="{{ route('ledgers.suppliers') }}"><i class="ti ti-book fs-16 me-2"></i><span>Supplier Ledger</span></a></li>@endcan
-                            @can('view journal entries')<li><a href="{{ route('ledgers.accounts') }}"><i class="ti ti-list-details fs-16 me-2"></i><span>General Ledger</span></a></li>@endcan
-                            @can('view journal entries')<li><a href="{{ route('ledgers.cash-book') }}"><i class="ti ti-wallet fs-16 me-2"></i><span>Cash Book</span></a></li>@endcan
-                            @can('view journal entries')<li><a href="{{ route('ledgers.bank-book') }}"><i class="ti ti-building-bank fs-16 me-2"></i><span>Bank Book</span></a></li>@endcan
-                            @can('manage chart of accounts')<li><a href="{{ route('accounts.index') }}"><i class="ti ti-chart-dots fs-16 me-2"></i><span>Chart of Accounts</span></a></li>@endcan
-                            @can('view journal entries')<li><a href="{{ route('journals.index') }}"><i class="ti ti-notebook fs-16 me-2"></i><span>Journal Entries</span></a></li>@endcan
-                            @can('view balance sheet')<li><a href="{{ route('reports.balance-sheet') }}"><i class="ti ti-scale fs-16 me-2"></i><span>Balance Sheet</span></a></li>@endcan
-                            @can('manage chart of accounts')<li><a href="{{ route('access.roles.index') }}"><i class="ti ti-shield fs-16 me-2"></i><span>Role Permissions</span></a></li>@endcan
-                            @can('manage chart of accounts')<li><a href="{{ route('access.users.index') }}"><i class="ti ti-user-cog fs-16 me-2"></i><span>User Access</span></a></li>@endcan --}}
+                            <li><a href="{{ route('accounting.sales') }}"><i class="ti ti-report-money fs-16 me-2"></i><span>Sales</span></a></li>
+                            <li><a href="{{ route('accounting.purchase') }}"><i class="ti ti-file-invoice fs-16 me-2"></i><span>Purchase</span></a></li>
+                            <li><a href="{{ route('accounting.receivable') }}"><i class="ti ti-receipt-2 fs-16 me-2"></i><span>Receivable</span></a></li>
+                            <li><a href="{{ route('accounting.payable') }}"><i class="ti ti-file-dollar fs-16 me-2"></i><span>Payable</span></a></li>
                         </ul>
                     </li>
-                @endcanany
+                @endif
             </ul>
         </div>
     </div>

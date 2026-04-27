@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\AdminProductController;
 use App\Http\Controllers\Admin\RoleManagementController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\AccountingModuleController;
 use App\Http\Controllers\BalanceSheetController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\Auth\AuthController;
@@ -22,6 +23,19 @@ use App\Http\Controllers\PurchaseInvoiceController;
 use App\Http\Controllers\StockController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\SupplierPaymentController;
+use App\Http\Controllers\V2\AccountController as V2AccountController;
+use App\Http\Controllers\V2\AccountDetailController as V2AccountDetailController;
+use App\Http\Controllers\V2\DashboardController as V2DashboardController;
+use App\Http\Controllers\V2\InvoiceController as V2InvoiceController;
+use App\Http\Controllers\V2\ItemController as V2ItemController;
+use App\Http\Controllers\V2\JournalVoucherController as V2JournalVoucherController;
+use App\Http\Controllers\V2\LedgerController as V2LedgerController;
+use App\Http\Controllers\V2\MasterDataController as V2MasterDataController;
+use App\Http\Controllers\V2\ReportController as V2ReportController;
+use App\Http\Controllers\V2\StockLedgerController as V2StockLedgerController;
+use App\Http\Controllers\V2\UserRightsController as V2UserRightsController;
+use App\Http\Controllers\V2\UtilityController as V2UtilityController;
+use App\Http\Controllers\V2\VoucherController as V2VoucherController;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 
@@ -56,11 +70,9 @@ Route::middleware('auth')->get('storage-link', function () {
     }
 })->name('storage.link');
 
-Route::get('/', function () {
-    return auth()->check()
-        ? redirect()->route('home')
-        : redirect()->route('login');
-});
+Route::get('/', [V2DashboardController::class, 'index'])
+    ->middleware(['auth', 'subscription.active', 'permission:v2 dashboard'])
+    ->name('dashboard');
 
 Route::middleware('guest')->group(function () {
     Route::get('admin/login', [LoginController::class, 'login'])->name('login');
@@ -91,6 +103,104 @@ Route::middleware(['auth', 'subscription.active'])->group(function () {
     Route::get('dashboard', [AdminDashboardController::class, 'index'])
         ->middleware('permission:view dashboard')
         ->name('home');
+
+    Route::prefix('accounting')->name('accounting.')->group(function () {
+        Route::get('/', fn () => redirect()->route('accounting.sales'))->name('index');
+        Route::get('sales', [AccountingModuleController::class, 'sales'])->name('sales');
+        Route::post('sales', [AccountingModuleController::class, 'storeSales'])->name('sales.store');
+        Route::get('purchase', [AccountingModuleController::class, 'purchase'])->name('purchase');
+        Route::post('purchase', [AccountingModuleController::class, 'storePurchase'])->name('purchase.store');
+        Route::get('receivable', [AccountingModuleController::class, 'receivable'])->name('receivable');
+        Route::post('receivable', [AccountingModuleController::class, 'storeReceivable'])->name('receivable.store');
+        Route::get('payable', [AccountingModuleController::class, 'payable'])->name('payable');
+        Route::post('payable', [AccountingModuleController::class, 'storePayable'])->name('payable.store');
+    });
+
+    Route::prefix('v2')->name('v2.')->group(function () {
+        Route::get('/', [V2DashboardController::class, 'index'])->middleware('permission:v2 dashboard')->name('dashboard');
+
+        Route::get('accounts', [V2AccountController::class, 'index'])->middleware('permission:v2 accounts manager')->name('accounts.index');
+        Route::post('accounts', [V2AccountController::class, 'store'])->middleware('permission:v2 insert')->name('accounts.store');
+        Route::get('accounts/{account}/edit', [V2AccountController::class, 'edit'])->middleware('permission:v2 edit')->name('accounts.edit');
+        Route::put('accounts/{account}', [V2AccountController::class, 'update'])->middleware('permission:v2 edit')->name('accounts.update');
+        Route::delete('accounts/{account}', [V2AccountController::class, 'destroy'])->middleware('permission:v2 delete')->name('accounts.destroy');
+
+        Route::get('account-details', [V2AccountDetailController::class, 'index'])->middleware('permission:v2 account details manager')->name('account-details.index');
+        Route::post('account-details', [V2AccountDetailController::class, 'store'])->middleware('permission:v2 insert')->name('account-details.store');
+        Route::get('account-details/{accountDetail}/edit', [V2AccountDetailController::class, 'edit'])->middleware('permission:v2 edit')->name('account-details.edit');
+        Route::put('account-details/{accountDetail}', [V2AccountDetailController::class, 'update'])->middleware('permission:v2 edit')->name('account-details.update');
+        Route::delete('account-details/{accountDetail}', [V2AccountDetailController::class, 'destroy'])->middleware('permission:v2 delete')->name('account-details.destroy');
+
+        Route::get('categories', [V2MasterDataController::class, 'categories'])->middleware('permission:v2 category manager')->name('categories.index');
+        Route::post('categories', [V2MasterDataController::class, 'storeCategory'])->middleware('permission:v2 insert')->name('categories.store');
+        Route::put('categories/{category}', [V2MasterDataController::class, 'updateCategory'])->middleware('permission:v2 edit')->name('categories.update');
+        Route::delete('categories/{category}', [V2MasterDataController::class, 'destroyCategory'])->middleware('permission:v2 delete')->name('categories.destroy');
+        Route::get('brands', [V2MasterDataController::class, 'brands'])->middleware('permission:v2 brand manager')->name('brands.index');
+        Route::post('brands', [V2MasterDataController::class, 'storeBrand'])->middleware('permission:v2 insert')->name('brands.store');
+        Route::put('brands/{brand}', [V2MasterDataController::class, 'updateBrand'])->middleware('permission:v2 edit')->name('brands.update');
+        Route::delete('brands/{brand}', [V2MasterDataController::class, 'destroyBrand'])->middleware('permission:v2 delete')->name('brands.destroy');
+
+        Route::get('items', [V2ItemController::class, 'index'])->middleware('permission:v2 stock manager')->name('items.index');
+        Route::post('items', [V2ItemController::class, 'store'])->middleware('permission:v2 insert')->name('items.store');
+        Route::get('items/{item}/edit', [V2ItemController::class, 'edit'])->middleware('permission:v2 edit')->name('items.edit');
+        Route::put('items/{item}', [V2ItemController::class, 'update'])->middleware('permission:v2 edit')->name('items.update');
+        Route::delete('items/{item}', [V2ItemController::class, 'destroy'])->middleware('permission:v2 delete')->name('items.destroy');
+
+        Route::get('purchase-invoices', [V2InvoiceController::class, 'index'])->defaults('type', 'purchase')->middleware('permission:v2 purchase book')->name('purchase.index');
+        Route::get('purchase-invoices/create', [V2InvoiceController::class, 'create'])->defaults('type', 'purchase')->middleware('permission:v2 purchase book')->name('purchase.create');
+        Route::post('purchase-invoices', [V2InvoiceController::class, 'store'])->defaults('type', 'purchase')->middleware('permission:v2 insert')->name('purchase.store');
+        Route::get('purchase-invoices/{invoice}', [V2InvoiceController::class, 'show'])->middleware('permission:v2 purchase book')->name('purchase.show');
+        Route::get('purchase-invoices/{invoice}/edit', [V2InvoiceController::class, 'edit'])->middleware('permission:v2 edit')->name('purchase.edit');
+        Route::put('purchase-invoices/{invoice}', [V2InvoiceController::class, 'update'])->middleware('permission:v2 edit')->name('purchase.update');
+        Route::delete('purchase-invoices/{invoice}', [V2InvoiceController::class, 'destroy'])->middleware('permission:v2 delete')->name('purchase.destroy');
+        Route::get('purchase-invoices/{invoice}/print/{format?}', [V2InvoiceController::class, 'print'])->middleware('permission:v2 purchase book')->name('purchase.print');
+
+        Route::get('sale-invoices', [V2InvoiceController::class, 'index'])->defaults('type', 'sale')->middleware('permission:v2 sale bill book')->name('sales.index');
+        Route::get('sale-invoices/create', [V2InvoiceController::class, 'create'])->defaults('type', 'sale')->middleware('permission:v2 sale bill book')->name('sales.create');
+        Route::post('sale-invoices', [V2InvoiceController::class, 'store'])->defaults('type', 'sale')->middleware('permission:v2 insert')->name('sales.store');
+        Route::get('sale-invoices/{invoice}', [V2InvoiceController::class, 'show'])->middleware('permission:v2 sale bill book')->name('sales.show');
+        Route::get('sale-invoices/{invoice}/edit', [V2InvoiceController::class, 'edit'])->middleware('permission:v2 edit')->name('sales.edit');
+        Route::put('sale-invoices/{invoice}', [V2InvoiceController::class, 'update'])->middleware('permission:v2 edit')->name('sales.update');
+        Route::delete('sale-invoices/{invoice}', [V2InvoiceController::class, 'destroy'])->middleware('permission:v2 delete')->name('sales.destroy');
+        Route::get('sale-invoices/{invoice}/print/{format?}', [V2InvoiceController::class, 'print'])->middleware('permission:v2 sale bill book')->name('sales.print');
+
+        Route::get('receipts', [V2VoucherController::class, 'index'])->defaults('type', 'receipt')->middleware('permission:v2 receipt vouchers')->name('receipts.index');
+        Route::get('receipts/create', [V2VoucherController::class, 'create'])->defaults('type', 'receipt')->middleware('permission:v2 receipt vouchers')->name('receipts.create');
+        Route::post('receipts', [V2VoucherController::class, 'store'])->defaults('type', 'receipt')->middleware('permission:v2 insert')->name('receipts.store');
+        Route::get('receipts/{voucher}', [V2VoucherController::class, 'show'])->middleware('permission:v2 receipt vouchers')->name('receipts.show');
+        Route::get('receipts/{voucher}/edit', [V2VoucherController::class, 'edit'])->middleware('permission:v2 edit')->name('receipts.edit');
+        Route::put('receipts/{voucher}', [V2VoucherController::class, 'update'])->middleware('permission:v2 edit')->name('receipts.update');
+        Route::delete('receipts/{voucher}', [V2VoucherController::class, 'destroy'])->middleware('permission:v2 delete')->name('receipts.destroy');
+        Route::get('receipts/{voucher}/print', [V2VoucherController::class, 'print'])->middleware('permission:v2 receipt vouchers')->name('receipts.print');
+
+        Route::get('payments', [V2VoucherController::class, 'index'])->defaults('type', 'payment')->middleware('permission:v2 payment vouchers')->name('payments.index');
+        Route::get('payments/create', [V2VoucherController::class, 'create'])->defaults('type', 'payment')->middleware('permission:v2 payment vouchers')->name('payments.create');
+        Route::post('payments', [V2VoucherController::class, 'store'])->defaults('type', 'payment')->middleware('permission:v2 insert')->name('payments.store');
+        Route::get('payments/{voucher}', [V2VoucherController::class, 'show'])->middleware('permission:v2 payment vouchers')->name('payments.show');
+        Route::get('payments/{voucher}/edit', [V2VoucherController::class, 'edit'])->middleware('permission:v2 edit')->name('payments.edit');
+        Route::put('payments/{voucher}', [V2VoucherController::class, 'update'])->middleware('permission:v2 edit')->name('payments.update');
+        Route::delete('payments/{voucher}', [V2VoucherController::class, 'destroy'])->middleware('permission:v2 delete')->name('payments.destroy');
+        Route::get('payments/{voucher}/print', [V2VoucherController::class, 'print'])->middleware('permission:v2 payment vouchers')->name('payments.print');
+
+        Route::get('journal-vouchers', [V2JournalVoucherController::class, 'index'])->middleware('permission:v2 journal vouchers')->name('journal.index');
+        Route::get('journal-vouchers/create', [V2JournalVoucherController::class, 'create'])->middleware('permission:v2 journal vouchers')->name('journal.create');
+        Route::post('journal-vouchers', [V2JournalVoucherController::class, 'store'])->middleware('permission:v2 insert')->name('journal.store');
+        Route::get('journal-vouchers/{voucher}', [V2JournalVoucherController::class, 'show'])->middleware('permission:v2 journal vouchers')->name('journal.show');
+        Route::get('journal-vouchers/{voucher}/print', [V2JournalVoucherController::class, 'print'])->middleware('permission:v2 journal vouchers')->name('journal.print');
+
+        Route::get('ledgers/{type}', [V2LedgerController::class, 'summary'])->name('ledgers.summary');
+        Route::get('ledger-account/{account}/{mode?}', [V2LedgerController::class, 'detail'])->middleware('permission:v2 dashboard')->name('ledgers.detail');
+        Route::get('stock-ledger', [V2StockLedgerController::class, 'index'])->middleware('permission:v2 stock ledger')->name('stock-ledger.index');
+        Route::get('stock-ledger/{item}/{report?}', [V2StockLedgerController::class, 'statement'])->middleware('permission:v2 stock ledger')->name('stock-ledger.statement');
+
+        Route::get('reports', [V2ReportController::class, 'index'])->middleware('permission:v2 trial balance|v2 trial balance aging|v2 income statement|v2 balance sheet')->name('reports.index');
+        Route::get('reports/{report}', [V2ReportController::class, 'show'])->middleware('permission:v2 trial balance|v2 trial balance aging|v2 income statement|v2 balance sheet')->name('reports.show');
+
+        Route::get('users', [V2UserRightsController::class, 'index'])->middleware('permission:v2 add remove users')->name('users.index');
+        Route::put('users/{user}/rights', [V2UserRightsController::class, 'update'])->middleware('permission:v2 add remove users')->name('users.rights.update');
+        Route::get('utilities/backup', [V2UtilityController::class, 'backup'])->middleware('permission:v2 backup restore')->name('utilities.backup');
+        Route::get('utilities/restore', [V2UtilityController::class, 'restore'])->middleware('permission:v2 backup restore')->name('utilities.restore');
+    });
 
     Route::resource('access/roles', RoleManagementController::class)
         ->except(['show'])
@@ -174,8 +284,4 @@ Route::middleware(['auth', 'subscription.active'])->group(function () {
     Route::get('reports/sales/export/excel', [PosController::class, 'exportDailySalesExcel'])->middleware('permission:view sales reports')->name('reports.sales.export.excel');
     Route::get('reports/sales/export/pdf', [PosController::class, 'exportDailySalesPdf'])->middleware('permission:view sales reports')->name('reports.sales.export.pdf');
 });
-
-
-
-
 
