@@ -72,7 +72,7 @@ Route::middleware('auth')->get('storage-link', function () {
 
 Route::get('/', [V2DashboardController::class, 'index'])
     ->middleware(['auth', 'subscription.active', 'permission:v2 dashboard'])
-    ->name('dashboard');
+    ->name('home');
 
 Route::middleware('guest')->group(function () {
     Route::get('admin/login', [LoginController::class, 'login'])->name('login');
@@ -100,9 +100,9 @@ Route::middleware(['auth', 'subscription.active'])->group(function () {
     Route::get('email/verify', [AuthController::class, 'verification_notice'])->name('verification.notice');
     Route::post('email/verification-notification', [AuthController::class, 'verification_send'])->middleware('throttle:2,1')->name('verification.send');
 
-    Route::get('dashboard', [AdminDashboardController::class, 'index'])
-        ->middleware('permission:view dashboard')
-        ->name('home');
+    // Route::get('dashboard', [AdminDashboardController::class, 'index'])
+    //     ->middleware('permission:view dashboard')
+    //     ->name('home');
 
     Route::prefix('accounting')->name('accounting.')->group(function () {
         Route::get('/', fn () => redirect()->route('accounting.sales'))->name('index');

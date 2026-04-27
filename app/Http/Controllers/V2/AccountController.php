@@ -33,7 +33,15 @@ class AccountController extends Controller
         $data['created_by'] = $request->user()?->id;
         $data['is_active'] = $request->boolean('is_active', true);
 
-        Account::create($data);
+        $account = Account::create($data);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Account saved.',
+                'account' => $account,
+            ]);
+        }
 
         return back()->with('success', 'Account saved.');
     }

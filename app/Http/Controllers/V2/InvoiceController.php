@@ -42,7 +42,7 @@ class InvoiceController extends Controller
     {
         $this->validateType($type);
 
-        return view('v2.invoices.form', $this->formData($type));
+        return view('v2.invoices.form', $this->formData($type) + ['invoice' => null]);
     }
 
     public function store(Request $request, string $type)

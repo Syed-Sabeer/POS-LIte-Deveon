@@ -39,7 +39,15 @@ class ItemController extends Controller
         $data['created_by'] = $request->user()?->id;
         $data['is_active'] = $request->boolean('is_active', true);
 
-        Item::create($data);
+        $item = Item::create($data);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Item saved.',
+                'item' => $item,
+            ]);
+        }
 
         return back()->with('success', 'Item saved.');
     }
